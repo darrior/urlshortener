@@ -7,13 +7,13 @@ type Service struct {
 	urls map[string]string
 }
 
-func NewService() Service {
-	return Service{
+func NewService() *Service {
+	return &Service{
 		urls: make(map[string]string),
 	}
 }
 
-func (s Service) AddURL(url string) string {
+func (s *Service) AddURL(url string) string {
 	shortURL := generateURL()
 	for _, ok := s.urls[shortURL]; ok; {
 		shortURL = generateURL()
@@ -24,7 +24,7 @@ func (s Service) AddURL(url string) string {
 	return shortURL
 }
 
-func (s Service) GetURL(shortURL string) (string, error) {
+func (s *Service) GetURL(shortURL string) (string, error) {
 	url, ok := s.urls[shortURL]
 
 	if !ok {
