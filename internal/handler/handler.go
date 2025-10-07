@@ -1,3 +1,4 @@
+// Package handler implements http-server and handler for endpoints.
 package handler
 
 import (
@@ -31,15 +32,18 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Println(rawURL)
 	longURL := string(rawURL)
-
 	if _, err := url.ParseRequestURI(longURL); err != nil {
 		http.Error(res, "Invalid URL", http.StatusBadRequest)
 		return
 	}
 
-	shortURLID := h.service.AddURL(longURL)
+	shortURLID, err := h.service.AddURL(longURL)
+	if err != nil {
+		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
+		return
+	}
+
 	scheme := "http://"
 	if req.TLS != nil {
 		scheme = "https://"

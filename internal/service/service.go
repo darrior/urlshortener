@@ -1,34 +1,46 @@
 // Package service implemets core logic of URL shortener
 package service
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/darrior/urlshortener/internal/repository"
+)
+
+var (
+	ErrorUnknownURL   = errors.New("unkonwn URL")
+	ErrorCannotAddURL = errors.New("cannot add URL")
+)
 
 type Service struct {
-	urls map[string]string
+	data repository.Repository
 }
 
-func NewService() *Service {
+func NewService(data repository.Repository) *Service {
 	return &Service{
-		urls: make(map[string]string),
+		data: data,
 	}
 }
 
-func (s *Service) AddURL(url string) string {
-	shortURL := generateURL()
-	for _, ok := s.urls[shortURL]; ok; {
-		shortURL = generateURL()
+func (s *Service) AddURL(url string) (string, error) {
+	id := generateURLID()
+	for _, err := s.data.GetURL(id); err == nil; {
+		id = generateURLID()
 	}
 
-	s.urls[shortURL] = url
+	if err := s.data.AddURL(id, url); err != nil {
+		return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
+	}
 
-	return shortURL
+	return id, nil
 }
 
-func (s *Service) GetURL(shortURL string) (string, error) {
-	url, ok := s.urls[shortURL]
-
-	if !ok {
-		return "", errors.New("URL not found")
+func (s *Service) GetURL(id string) (string, error) {
+	url, err := s.data.GetURL(id)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", ErrorUnknownURL.Error(), err)
 	}
+
 	return url, nil
 }
