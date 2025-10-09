@@ -13,9 +13,16 @@ var (
 	ErrorCannotAddURL = errors.New("cannot add URL")
 )
 
+type IService interface {
+	AddURL(url string) (id string, err error)
+	GetURL(id string) (url string, err error)
+}
+
 type Service struct {
 	data repository.Repository
 }
+
+var _ IService = (*Service)(nil)
 
 func NewService(data repository.Repository) *Service {
 	return &Service{

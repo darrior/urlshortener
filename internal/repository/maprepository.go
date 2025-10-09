@@ -10,6 +10,8 @@ type MapRepository struct {
 	urls map[string]string
 }
 
+var _ Repository = (*MapRepository)(nil)
+
 func NewMapRepository() *MapRepository {
 	return &MapRepository{
 		urls: map[string]string{},

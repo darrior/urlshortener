@@ -12,7 +12,7 @@ import (
 )
 
 type handler struct {
-	service *service.Service
+	service service.IService
 }
 
 func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
