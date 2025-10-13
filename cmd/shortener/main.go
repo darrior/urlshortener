@@ -11,7 +11,8 @@ import (
 
 func main() {
 	r := repository.NewMapRepository()
-	s := service.NewService(r)
+
+	s := service.NewService(r, "")
 
 	srv := handler.NewServer("127.0.0.1:8080", s)
 	if err := srv.Run(); err != nil {

@@ -18,7 +18,7 @@ type testService struct {
 var _ service.IService = (*testService)(nil)
 
 func (t *testService) AddURL(id string) (string, error) {
-	return "AAAAAAA", nil
+	return "http://127.0.0.1:8080/AAAAAAA", nil
 }
 
 func (t *testService) GetURL(id string) (string, error) {

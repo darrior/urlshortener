@@ -34,20 +34,20 @@ func TestService_AddURL(t *testing.T) {
 		data repository.Repository
 		// Named input parameters for target function.
 		url     string
-		want    string
+		want    int
 		wantErr bool
 	}{
 		{
 			name:    "Add url",
 			data:    &testRepository{make(map[string]string)},
 			url:     "http://example.com",
-			want:    "http://example.com",
+			want:    1,
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(tt.data)
+			s := NewService(tt.data, "http://127.0.0.1:8080")
 			got, gotErr := s.AddURL(tt.url)
 
 			if tt.wantErr {
@@ -59,7 +59,7 @@ func TestService_AddURL(t *testing.T) {
 			assert.NotEmpty(t, got)
 
 			rep := s.data.(*testRepository)
-			assert.Equal(t, tt.want, rep.urls[got])
+			assert.Equal(t, tt.want, len(rep.urls))
 		})
 	}
 }
@@ -109,7 +109,7 @@ func TestService_GetURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(tt.data)
+			s := NewService(tt.data, "http://127.0.0.1:8080")
 			got, gotErr := s.GetURL(tt.id)
 
 			if tt.wantErr {

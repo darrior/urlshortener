@@ -4,6 +4,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"net/url"
 
 	"github.com/darrior/urlshortener/internal/repository"
 )
@@ -14,40 +15,47 @@ var (
 )
 
 type IService interface {
-	AddURL(url string) (id string, err error)
-	GetURL(id string) (url string, err error)
+	AddURL(longURL string) (shortURL string, err error)
+	GetURL(id string) (longURL string, err error)
 }
 
 type Service struct {
-	data repository.Repository
+	data        repository.Repository
+	baseAddress string
 }
 
 var _ IService = (*Service)(nil)
 
-func NewService(data repository.Repository) *Service {
+func NewService(data repository.Repository, baseAddress string) *Service {
 	return &Service{
-		data: data,
+		data:        data,
+		baseAddress: baseAddress,
 	}
 }
 
-func (s *Service) AddURL(url string) (string, error) {
+func (s *Service) AddURL(longURL string) (string, error) {
 	id := generateURLID()
 	for _, err := s.data.GetURL(id); err == nil; {
 		id = generateURLID()
 	}
 
-	if err := s.data.AddURL(id, url); err != nil {
+	if err := s.data.AddURL(id, longURL); err != nil {
 		return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
 	}
 
-	return id, nil
+	shortURL, err := url.JoinPath(s.baseAddress, id)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
+	}
+
+	return shortURL, nil
 }
 
 func (s *Service) GetURL(id string) (string, error) {
-	url, err := s.data.GetURL(id)
+	longURL, err := s.data.GetURL(id)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", ErrorUnknownURL.Error(), err)
 	}
 
-	return url, nil
+	return longURL, nil
 }

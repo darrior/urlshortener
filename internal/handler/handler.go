@@ -38,20 +38,9 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortURLID, err := h.service.AddURL(longURL)
+	shortURL, err := h.service.AddURL(longURL)
 	if err != nil {
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
-		return
-	}
-
-	scheme := "http://"
-	if req.TLS != nil {
-		scheme = "https://"
-	}
-
-	shortURL, err := url.JoinPath(scheme+req.Host, shortURLID)
-	if err != nil {
-		http.Error(res, "Can not join base URL with ID", http.StatusBadRequest)
 		return
 	}
 
