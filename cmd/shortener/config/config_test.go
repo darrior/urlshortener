@@ -17,7 +17,7 @@ func TestConfig_validateListenAddress(t *testing.T) {
 		{
 			name:    "Empty string",
 			address: "",
-			want:    "",
+			want:    _defaultListenAddress,
 			wantErr: false,
 		},
 		{
