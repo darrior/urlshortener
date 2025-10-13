@@ -59,7 +59,7 @@ func TestService_AddURL(t *testing.T) {
 			assert.NotEmpty(t, got)
 
 			rep := s.data.(*testRepository)
-			assert.Equal(t, rep.urls[got], tt.want)
+			assert.Equal(t, tt.want, rep.urls[got])
 		})
 	}
 }
