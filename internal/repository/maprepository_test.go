@@ -30,7 +30,7 @@ func TestMapRepository_AddURL(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "Add URL to non-empty map",
+			name:    "Overwrite URL in map",
 			urls:    map[string]string{"test_id": "654321"},
 			id:      "test_id",
 			url:     "123456",
