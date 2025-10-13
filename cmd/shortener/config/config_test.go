@@ -15,9 +15,9 @@ func TestConfig_validateListenAddress(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "Default value",
+			name:    "Empty string",
 			address: "",
-			want:    _defaultListenAddress,
+			want:    "",
 			wantErr: false,
 		},
 		{
@@ -64,7 +64,7 @@ func TestConfig_validateBaseAddress(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "Default value",
+			name:    "Empty string",
 			address: "",
 			want:    _defaultBaseAddress,
 			wantErr: false,

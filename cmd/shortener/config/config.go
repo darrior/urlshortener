@@ -37,8 +37,13 @@ func ParseConfig() Config {
 }
 
 func (c *Config) validateListenAddress(address string) error {
-	splited := strings.Split(address, ":")
-	if len(splited) != 2 {
+	if address == "" {
+		c.ListenAddress = _defaultListenAddress
+		return nil
+	}
+
+	splitedAddress := strings.Split(address, ":")
+	if len(splitedAddress) != 2 {
 		return errorValidateListenAddress
 	}
 
@@ -48,15 +53,20 @@ func (c *Config) validateListenAddress(address string) error {
 }
 
 func (c *Config) validateBaseAddress(address string) error {
-	parsed, err := url.Parse(address)
+	if address == "" {
+		c.BaseAddress = _defaultBaseAddress
+		return nil
+	}
+
+	parsedURL, err := url.Parse(address)
 	if err != nil {
 		return fmt.Errorf("%s: %w", errorValidateBaseAddress.Error(), err)
 	}
 
-	parsed.Path = ""
-	parsed.RawQuery = ""
+	parsedURL.Path = ""
+	parsedURL.RawQuery = ""
 
-	c.BaseAddress = parsed.String()
+	c.BaseAddress = parsedURL.String()
 
 	return nil
 }
