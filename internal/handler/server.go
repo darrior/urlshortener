@@ -4,17 +4,18 @@ import (
 	"net/http"
 
 	"github.com/darrior/urlshortener/internal/service"
+	"github.com/go-chi/chi/v5"
 )
 
 type Server struct {
-	mux     *http.ServeMux
+	mux     *chi.Mux
 	h       *handler
 	address string
 }
 
 func NewServer(address string, service *service.Service) *Server {
 	s := Server{
-		mux: http.NewServeMux(),
+		mux: chi.NewRouter(),
 		h: &handler{
 			service: service,
 		},
