@@ -23,5 +23,6 @@ func (r *MapRepository) GetURL(id string) (string, error) {
 	if !ok {
 		return "", ErrorNotFound
 	}
+
 	return url, nil
 }
