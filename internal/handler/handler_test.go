@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/darrior/urlshortener/internal/service"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,8 +15,9 @@ type testService struct {
 	urls map[string]string
 }
 
-func (t *testService) AddURL(id string) (string, error) {
+var _ service.IService = (*testService)(nil)
 
+func (t *testService) AddURL(id string) (string, error) {
 	return "AAAAAAA", nil
 }
 
