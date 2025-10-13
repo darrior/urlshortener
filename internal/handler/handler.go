@@ -22,7 +22,7 @@ func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
 
 func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("content-type") != "text/plain" {
-		http.Error(res, "Content type must be \"text/plain\"", http.StatusBadRequest)
+		http.Error(res, `Content type must be "text/plain"`, http.StatusBadRequest)
 		return
 	}
 
@@ -50,7 +50,6 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 	}
 
 	shortURL, err := url.JoinPath(scheme+req.Host, shortURLID)
-
 	if err != nil {
 		http.Error(res, "Can not join base URL with ID", http.StatusBadRequest)
 		return

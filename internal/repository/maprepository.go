@@ -1,11 +1,5 @@
 package repository
 
-import (
-	"errors"
-)
-
-var ErrorNotFound = errors.New("not found")
-
 type MapRepository struct {
 	urls map[string]string
 }
@@ -24,8 +18,8 @@ func (r *MapRepository) AddURL(id, url string) error {
 	return nil
 }
 
-func (r *MapRepository) GetURL(shortURL string) (string, error) {
-	url, ok := r.urls[shortURL]
+func (r *MapRepository) GetURL(id string) (string, error) {
+	url, ok := r.urls[id]
 	if !ok {
 		return "", ErrorNotFound
 	}
