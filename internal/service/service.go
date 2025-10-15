@@ -1,0 +1,61 @@
+// Package service implemets core logic of URL shortener
+package service
+
+import (
+	"errors"
+	"fmt"
+	"net/url"
+
+	"github.com/darrior/urlshortener/internal/repository"
+)
+
+var (
+	ErrorUnknownURL   = errors.New("unkonwn URL")
+	ErrorCannotAddURL = errors.New("cannot add URL")
+)
+
+type IService interface {
+	AddURL(longURL string) (shortURL string, err error)
+	GetURL(id string) (longURL string, err error)
+}
+
+type Service struct {
+	data        repository.Repository
+	baseAddress string
+}
+
+var _ IService = (*Service)(nil)
+
+func NewService(data repository.Repository, baseAddress string) *Service {
+	return &Service{
+		data:        data,
+		baseAddress: baseAddress,
+	}
+}
+
+func (s *Service) AddURL(longURL string) (string, error) {
+	id := generateURLID()
+	for _, err := s.data.GetURL(id); err == nil; {
+		id = generateURLID()
+	}
+
+	if err := s.data.AddURL(id, longURL); err != nil {
+		return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
+	}
+
+	shortURL, err := url.JoinPath(s.baseAddress, id)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
+	}
+
+	return shortURL, nil
+}
+
+func (s *Service) GetURL(id string) (string, error) {
+	longURL, err := s.data.GetURL(id)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", ErrorUnknownURL.Error(), err)
+	}
+
+	return longURL, nil
+}
