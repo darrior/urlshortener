@@ -11,13 +11,16 @@ import (
 )
 
 func main() {
-	c := config.ParseConfig()
+	c, err := config.ParseConfig()
+	if err != nil {
+		c = config.DefaultConfig()
+	}
 
 	r := repository.NewMapRepository()
 
-	s := service.NewService(r, c.BaseAddress)
+	s := service.NewService(r, c.BaseAddress.String())
 
-	srv := handler.NewServer(c.ListenAddress, s)
+	srv := handler.NewServer(string(c.ListenAddress), s)
 	if err := srv.Run(); err != nil {
 		fmt.Printf("An error occured: %s\n", err.Error())
 		os.Exit(1)
