@@ -148,6 +148,86 @@ func Test_handler_postURL(t *testing.T) {
 	}
 }
 
+func Test_handler_postAPIShorten(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		h    handler
+		req  *http.Request
+		want want
+	}{
+
+		{
+			name: "Empty POST request",
+			h:    handler{service: &testService{}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Set("content-type", "test")
+				return r
+			}(),
+			want: want{
+				status:      http.StatusBadRequest,
+				data:        "Content type must be \"application/json\"\n",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "Empty POST request with header",
+			h:    handler{service: &testService{}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Add("content-type", "application/json")
+				return r
+			}(),
+			want: want{
+				status:      http.StatusBadRequest,
+				data:        "Can not unmarshal JSON\n",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "Invalid URL",
+			h:    handler{service: &testService{}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"url": ""}`))
+				r.Header.Add("content-type", "application/json")
+				return r
+			}(),
+			want: want{
+				status:      http.StatusBadRequest,
+				data:        "Invalid URL\n",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "Valid request",
+			h:    handler{service: &testService{urls: make(map[string]string)}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader(`{"url": "http://example.com"}`))
+				r.Header.Add("content-type", "application/json")
+
+				return r
+			}(),
+			want: want{
+				status:      http.StatusCreated,
+				data:        `{"result":"http://127.0.0.1:8080/AAAAAAA"}`,
+				contentType: "application/json",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := httptest.NewRecorder()
+
+			tt.h.postAPIShorten(res, tt.req)
+
+			assert.Equal(t, tt.want.status, res.Code)
+			assert.Equal(t, tt.want.data, res.Body.String())
+			assert.Equal(t, tt.want.contentType, res.Header().Get("content-type"))
+		})
+	}
+}
+
 func Test_handler_getFullURL(t *testing.T) {
 	validReq := httptest.NewRequest(http.MethodGet, "/", nil)
 	validReq.SetPathValue("url_id", "AAAAAAA")
