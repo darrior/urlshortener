@@ -1,7 +1,12 @@
 package handler
 
 import (
+	"bytes"
+	"compress/gzip"
+	"context"
+	"io"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -56,4 +61,39 @@ func logMiddlware(h http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(logHandler)
+}
+
+func extractMiddlware(h http.Handler) http.Handler {
+	extractHandler := func(res http.ResponseWriter, req *http.Request) {
+		encoding := req.Header.Get("content-encoding")
+		if encoding == "" {
+			h.ServeHTTP(res, req)
+			return
+		}
+
+		if encoding != "gzip" {
+			http.Error(res, "Unsupported content encoding", http.StatusBadRequest)
+		}
+
+		r, err := gzip.NewReader(req.Body)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		defer r.Close()
+
+		data, err := io.ReadAll(r)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+		}
+
+		req.Body = io.NopCloser(bytes.NewReader(data))
+		req.Header.Del("content-encoding")
+		req.Header.Set("content-length", strconv.Itoa(len(data)))
+
+		h.ServeHTTP(res, req)
+	}
+
+	return http.HandlerFunc(extractHandler)
 }
