@@ -90,12 +90,6 @@ func Test_handler_errorHandler(t *testing.T) {
 }
 
 func Test_handler_postURL(t *testing.T) {
-	emptyReq := httptest.NewRequest(http.MethodPost, "/", nil)
-	emptyReq.Header.Add("content-type", "text/plain")
-
-	validReq := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader("https://example.com"))
-	validReq.Header.Add("content-type", "text/plain")
-
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -106,7 +100,11 @@ func Test_handler_postURL(t *testing.T) {
 		{
 			name: "Empty POST request",
 			h:    handler{service: &testService{}},
-			req:  httptest.NewRequest(http.MethodPost, "/", nil),
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Set("content-type", "test")
+				return r
+			}(),
 			want: want{
 				status:      http.StatusBadRequest,
 				data:        "Content type must be \"text/plain\"\n",
@@ -116,7 +114,11 @@ func Test_handler_postURL(t *testing.T) {
 		{
 			name: "Empty POST request with header",
 			h:    handler{service: &testService{}},
-			req:  emptyReq,
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Add("content-type", "text/plain; charset=utf-8")
+				return r
+			}(),
 			want: want{
 				status:      http.StatusBadRequest,
 				data:        "Invalid URL\n",
@@ -126,7 +128,12 @@ func Test_handler_postURL(t *testing.T) {
 		{
 			name: "Valid request",
 			h:    handler{service: &testService{urls: make(map[string]string)}},
-			req:  validReq,
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader("https://example.com"))
+				r.Header.Add("content-type", "text/plain")
+
+				return r
+			}(),
 			want: want{
 				status:      http.StatusCreated,
 				data:        "http://127.0.0.1:8080/AAAAAAA",
@@ -136,7 +143,6 @@ func Test_handler_postURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// TODO: construct the receiver type.
 			res := httptest.NewRecorder()
 
 			tt.h.postURL(res, tt.req)

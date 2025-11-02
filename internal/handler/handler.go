@@ -24,7 +24,8 @@ func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
-	if req.Header.Get("content-type") != "text/plain" {
+	if !strings.HasPrefix(req.Header.Get("content-type"), "text/plain") {
+		fmt.Println(req.Header.Get("content-type"))
 		http.Error(res, `Content type must be "text/plain"`, http.StatusBadRequest)
 		return
 	}
@@ -47,9 +48,9 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	res.WriteHeader(http.StatusCreated)
 	res.Header().Set("content-type", "text/plain")
 	res.Header().Set("content-length", strconv.Itoa(len(shortURL)))
+	res.WriteHeader(http.StatusCreated)
 	_, _ = fmt.Fprint(res, shortURL)
 }
 
