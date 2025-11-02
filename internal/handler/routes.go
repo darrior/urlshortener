@@ -8,4 +8,5 @@ func (s *Server) addRoutes() {
 	s.mux.Get("/{url_id}", s.h.getFullURL)
 
 	s.mux.Post("/", s.h.postURL)
+	s.mux.Post("/api/shorten", s.h.postAPIShorten)
 }
