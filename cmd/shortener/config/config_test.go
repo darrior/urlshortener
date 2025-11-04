@@ -138,14 +138,15 @@ func TestParseConfig(t *testing.T) {
 	}{
 		{
 			name:  "ENV and flags",
-			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90"},
-			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:50", "BASE_ADDRESS": "https://127.0.0.1:9090"},
+			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90", "-f", "data.json"},
+			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:50", "BASE_ADDRESS": "https://127.0.0.1:9090", "FILE_STORAGE_PATH": "test.json"},
 			want: Config{
 				ListenAddress: "127.0.0.1:50",
 				BaseAddress: url.URL{
 					Scheme: "https",
 					Host:   "127.0.0.1:9090",
 				},
+				StorageFile: "test.json",
 			},
 			wantErr: false,
 		},
@@ -159,12 +160,13 @@ func TestParseConfig(t *testing.T) {
 					Scheme: "http",
 					Host:   "127.0.0.1:90",
 				},
+				StorageFile: "urls.json",
 			},
 			wantErr: false,
 		},
 		{
 			name:  "Ivalid env",
-			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90"},
+			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90", "-f", "data.json"},
 			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:1234567", "BASE_ADDRESS": "https://127.0.0.1:9090"},
 			want: Config{
 				ListenAddress: "127.0.0.1:50",
@@ -172,6 +174,7 @@ func TestParseConfig(t *testing.T) {
 					Scheme: "http",
 					Host:   "127.0.0.1:90",
 				},
+				StorageFile: "data.json",
 			},
 			wantErr: true,
 		},
@@ -185,6 +188,7 @@ func TestParseConfig(t *testing.T) {
 					Scheme: "http",
 					Host:   "127.0.0.1:90",
 				},
+				StorageFile: "urls.json",
 			},
 			wantErr: true,
 		},
@@ -195,12 +199,13 @@ func TestParseConfig(t *testing.T) {
 			want: Config{
 				ListenAddress: _defaultListenAddress,
 				BaseAddress:   _defaultBaseAddress,
+				StorageFile:   _defaultStoragFilePath,
 			},
 			wantErr: false,
 		},
 		{
 			name:  "Flags without env",
-			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90"},
+			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90", "-f", "data.json"},
 			env:   map[string]string{},
 			want: Config{
 				ListenAddress: "127.0.0.1:80",
@@ -208,19 +213,21 @@ func TestParseConfig(t *testing.T) {
 					Scheme: "http",
 					Host:   "127.0.0.1:90",
 				},
+				StorageFile: "data.json",
 			},
 			wantErr: false,
 		},
 		{
 			name:  "Env without flags",
 			flags: []string{},
-			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:50", "BASE_ADDRESS": "https://127.0.0.1:9090"},
+			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:50", "BASE_ADDRESS": "https://127.0.0.1:9090", "FILE_STORAGE_PATH": "data.json"},
 			want: Config{
 				ListenAddress: "127.0.0.1:50",
 				BaseAddress: url.URL{
 					Scheme: "https",
 					Host:   "127.0.0.1:9090",
 				},
+				StorageFile: "data.json",
 			},
 			wantErr: false,
 		},

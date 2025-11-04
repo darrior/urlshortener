@@ -16,7 +16,10 @@ import (
 
 type host string
 
-const _defaultListenAddress host = "127.0.0.1:8080"
+const (
+	_defaultListenAddress  host   = "127.0.0.1:8080"
+	_defaultStoragFilePath string = "urls.json"
+)
 
 var _defaultBaseAddress = url.URL{
 	Scheme: "http",
@@ -31,12 +34,14 @@ var (
 type Config struct {
 	ListenAddress host    `env:"LISTEN_ADDRESS"`
 	BaseAddress   url.URL `env:"BASE_ADDRESS"`
+	StorageFile   string  `env:"FILE_STORAGE_PATH"`
 }
 
 func DefaultConfig() Config {
 	return Config{
 		ListenAddress: _defaultListenAddress,
 		BaseAddress:   _defaultBaseAddress,
+		StorageFile:   _defaultStoragFilePath,
 	}
 }
 
@@ -46,6 +51,7 @@ func ParseConfig() (Config, error) {
 	set := flag.NewFlagSet("", flag.ContinueOnError)
 	set.Func("a", "listen address for web-server", c.validateListenAddress)
 	set.Func("b", "base address for short URL", c.validateBaseAddress)
+	set.Func("f", "path to storage file", c.validateSorageFile)
 	if err := set.Parse(os.Args[1:]); err != nil {
 		return Config{}, err
 	}
@@ -94,6 +100,11 @@ func (c *Config) validateBaseAddress(address string) error {
 
 	c.BaseAddress = *parsedURL
 
+	return nil
+}
+
+func (c *Config) validateSorageFile(file string) error {
+	c.StorageFile = file
 	return nil
 }
 
