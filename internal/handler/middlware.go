@@ -37,6 +37,7 @@ func (l *loggingResponseWriter) WriteHeader(status int) {
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
+	status int
 	writer io.Writer
 }
 
@@ -44,6 +45,10 @@ var _ http.ResponseWriter = new(gzipResponseWriter)
 
 func (g *gzipResponseWriter) Write(data []byte) (int, error) {
 	return g.writer.Write(data)
+}
+
+func (g *gzipResponseWriter) WriteHeader(status int) {
+	g.status = status
 }
 
 func logMiddlware(h http.Handler) http.Handler {
@@ -109,24 +114,31 @@ func compressMiddlware(h http.Handler) http.Handler {
 			return
 		}
 
-		var data []byte
-		buf := bytes.NewBuffer(data)
-		h.ServeHTTP(&gzipResponseWriter{res, buf}, req)
+		var buf bytes.Buffer
+		newRes := gzipResponseWriter{
+			ResponseWriter: res,
+			status:         0,
+			writer:         &buf,
+		}
+
+		h.ServeHTTP(&newRes, req)
 
 		if !strings.Contains(res.Header().Get("content-type"), "application/json") &&
 			!strings.Contains(res.Header().Get("content-type"), "text/html") {
-			_, _ = res.Write(data)
+			_, _ = res.Write(buf.Bytes())
+			res.WriteHeader(newRes.status)
+
 			return
 		}
 
-		w, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
+		var gbuf bytes.Buffer
+		w, err := gzip.NewWriterLevel(&gbuf, gzip.BestSpeed)
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		n, err := w.Write(data)
-		if err != nil {
+		if _, err := w.Write(buf.Bytes()); err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -136,8 +148,14 @@ func compressMiddlware(h http.Handler) http.Handler {
 			return
 		}
 
-		res.Header().Set("conent-length", strconv.Itoa(n))
+		body := gbuf.Bytes()
 		res.Header().Set("content-encoding", "gzip")
+		res.Header().Del("content-length")
+		res.Header().Set("content-length", strconv.Itoa(len(body)))
+
+		res.WriteHeader(newRes.status)
+
+		_, _ = res.Write(body)
 	}
 
 	return http.HandlerFunc(compressHandler)
