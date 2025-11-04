@@ -1,0 +1,26 @@
+# Build urlshortener binary.
+build:
+    go build -o build/urlshortener cmd/shortener/main.go
+
+# Run urlshortener.
+run:
+    go run cmd/shortener/main.go
+    
+# Run unit-tests only
+test path="./...":
+    go test {{path}}
+
+# Calculate test coverage.
+cover path="./...":
+    @go test ./... -coverprofile /tmp/cover.out && go tool cover -html cover.out
+    @rm /tmp/cover.out
+
+cover-html:
+    go tool cover -html cover.out
+
+# Run golangci-lint.
+lint path="./...":
+    golangci-lint run {{path}}
+
+# Run linter and unit-tests.
+check: lint test
