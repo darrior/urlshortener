@@ -129,8 +129,6 @@ func Test_extractMiddlware(t *testing.T) {
 			resp := res.Result()
 			data, err := io.ReadAll(resp.Body)
 
-			t.Log(resp)
-
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.status, resp.StatusCode)
 			assert.Equal(t, tt.want.data, data)
@@ -164,15 +162,30 @@ func Test_checkEncoding(t *testing.T) {
 		enc  string
 		want bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Contains gzip",
+			encs: []string{"gzip"},
+			enc:  "gzip",
+			want: true,
+		},
+		{
+			name: "Does not contains gzip",
+			encs: []string{"zip"},
+			enc:  "gzip",
+			want: false,
+		},
+		{
+			name: "Multiple values",
+			encs: []string{"zip", "deflate", "gzip"},
+			enc:  "gzip",
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := checkEncoding(tt.encs, tt.enc)
-			// TODO: update the condition below to compare got with tt.want.
-			if true {
-				t.Errorf("checkEncoding() = %v, want %v", got, tt.want)
-			}
+
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

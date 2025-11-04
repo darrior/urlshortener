@@ -24,8 +24,7 @@ func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
-	if !strings.HasPrefix(req.Header.Get("content-type"), "text/plain") {
-		fmt.Println(req.Header.Get("content-type"))
+	if !strings.Contains(req.Header.Get("content-type"), "text/plain") {
 		http.Error(res, `Content type must be "text/plain"`, http.StatusBadRequest)
 		return
 	}
@@ -64,7 +63,6 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&reqData); err != nil {
-		fmt.Println(err.Error())
 		http.Error(res, "Can not unmarshal JSON", http.StatusBadRequest)
 		return
 	}
@@ -93,7 +91,6 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("content-type", "application/json")
 	res.Header().Set("content-length", strconv.Itoa(len(data)))
 	res.WriteHeader(http.StatusCreated)
-	fmt.Println(res.Header())
 	_, _ = res.Write(data)
 }
 
