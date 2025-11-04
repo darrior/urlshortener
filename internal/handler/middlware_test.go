@@ -12,7 +12,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func emptyHandler(res http.ResponseWriter, req *http.Request) {
+type mwant struct {
+	status int
+	data   []byte
+}
+
+func echoHandler(res http.ResponseWriter, req *http.Request) {
 	data, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
@@ -26,21 +31,17 @@ func emptyHandler(res http.ResponseWriter, req *http.Request) {
 }
 
 func Test_extractMiddlware(t *testing.T) {
-	type want struct {
-		status int
-		data   []byte
-	}
 
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
 		h    http.Handler
 		req  *http.Request
-		want want
+		want mwant
 	}{
 		{
 			name: "Valid request",
-			h:    http.HandlerFunc(emptyHandler),
+			h:    http.HandlerFunc(echoHandler),
 			req: func() *http.Request {
 				data := []byte("Hello, world!")
 
@@ -60,14 +61,14 @@ func Test_extractMiddlware(t *testing.T) {
 				r.Header.Set("content-encoding", "gzip")
 				return r
 			}(),
-			want: want{
+			want: mwant{
 				status: http.StatusOK,
 				data:   []byte("Hello, world!"),
 			},
 		},
 		{
 			name: "Invalid gzip",
-			h:    http.HandlerFunc(emptyHandler),
+			h:    http.HandlerFunc(echoHandler),
 			req: func() *http.Request {
 				data := []byte("Hello, world!")
 
@@ -84,14 +85,14 @@ func Test_extractMiddlware(t *testing.T) {
 				r.Header.Set("content-encoding", "gzip")
 				return r
 			}(),
-			want: want{
+			want: mwant{
 				status: http.StatusInternalServerError,
 				data:   []byte("unexpected EOF\n"),
 			},
 		},
 		{
 			name: "Invalid gzip header",
-			h:    http.HandlerFunc(emptyHandler),
+			h:    http.HandlerFunc(echoHandler),
 			req: func() *http.Request {
 				data := []byte("Hello, world!")
 
@@ -99,21 +100,21 @@ func Test_extractMiddlware(t *testing.T) {
 				r.Header.Set("content-encoding", "gzip")
 				return r
 			}(),
-			want: want{
+			want: mwant{
 				status: http.StatusInternalServerError,
 				data:   []byte("gzip: invalid header\n"),
 			},
 		},
 		{
 			name: "Request without encoding",
-			h:    http.HandlerFunc(emptyHandler),
+			h:    http.HandlerFunc(echoHandler),
 			req: func() *http.Request {
 				data := []byte("Hello, world!")
 
 				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(data))
 				return r
 			}(),
-			want: want{
+			want: mwant{
 				status: http.StatusOK,
 				data:   []byte("Hello, world!"),
 			},
@@ -141,15 +142,89 @@ func Test_compressMiddlware(t *testing.T) {
 		name string // description of this test case
 		// Named input parameters for target function.
 		h    http.Handler
-		want http.Handler
-	}{}
+		req  *http.Request
+		want mwant
+	}{
+		{
+			name: "Valid request",
+			h:    http.HandlerFunc(echoHandler),
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("Hello, world!")))
+				r.Header.Set("Accept-Encoding", "gzip")
+				return r
+
+			}(),
+			want: func() mwant {
+				w := mwant{}
+				w.status = http.StatusOK
+
+				var b bytes.Buffer
+				g, err := gzip.NewWriterLevel(&b, gzip.BestSpeed)
+				assert.NoError(t, err)
+
+				_, err = g.Write([]byte("Hello, world!"))
+				assert.NoError(t, err)
+
+				err = g.Close()
+				assert.NoError(t, err)
+
+				w.data = b.Bytes()
+
+				return w
+			}(),
+		},
+		{
+			name: "No accept",
+			h:    http.HandlerFunc(echoHandler),
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("Hello, world!")))
+				return r
+
+			}(),
+			want: mwant{
+				status: http.StatusOK,
+				data:   []byte("Hello, world!"),
+			},
+		},
+		{
+			name: "Wrong content-type",
+			h: http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+				data, err := io.ReadAll(req.Body)
+				if err != nil {
+					http.Error(res, err.Error(), http.StatusInternalServerError)
+					return
+				}
+
+				res.Header().Set("content-type", "text/plain")
+				res.Header().Set("content-length", strconv.Itoa(len(data)))
+				_, _ = res.Write(data)
+				res.WriteHeader(http.StatusOK)
+			}),
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader([]byte("Hello, world!")))
+				r.Header.Set("Accept-Encoding", "gzip")
+				return r
+
+			}(),
+			want: mwant{
+				status: http.StatusOK,
+				data:   []byte("Hello, world!"),
+			},
+		},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			res := httptest.NewRecorder()
+
 			got := compressMiddlware(tt.h)
-			// TODO: update the condition below to compare got with tt.want.
-			if true {
-				t.Errorf("compressMiddlware() = %v, want %v", got, tt.want)
-			}
+			got.ServeHTTP(res, tt.req)
+
+			resp := res.Result()
+			data, err := io.ReadAll(resp.Body)
+
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want.status, resp.StatusCode)
+			assert.Equal(t, tt.want.data, data)
 		})
 	}
 }

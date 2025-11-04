@@ -30,7 +30,7 @@ func (t *testService) GetURL(id string) (string, error) {
 	return url, nil
 }
 
-type want struct {
+type hwant struct {
 	status      int
 	data        string
 	contentType string
@@ -42,13 +42,13 @@ func Test_handler_errorHandler(t *testing.T) {
 		// Named input parameters for target function.
 		h    handler
 		req  *http.Request
-		want want
+		want hwant
 	}{
 		{
 			name: "GET request to root",
 			h:    handler{service: &testService{}},
 			req:  httptest.NewRequest(http.MethodGet, "/", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid request\n",
 				contentType: "text/plain; charset=utf-8",
@@ -58,7 +58,7 @@ func Test_handler_errorHandler(t *testing.T) {
 			name: "DELETE request to root",
 			h:    handler{service: &testService{}},
 			req:  httptest.NewRequest(http.MethodDelete, "/", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid request\n",
 				contentType: "text/plain; charset=utf-8",
@@ -68,7 +68,7 @@ func Test_handler_errorHandler(t *testing.T) {
 			name: "GET request to some path",
 			h:    handler{service: &testService{}},
 			req:  httptest.NewRequest(http.MethodGet, "/first/second", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid request\n",
 				contentType: "text/plain; charset=utf-8",
@@ -95,7 +95,7 @@ func Test_handler_postURL(t *testing.T) {
 		// Named input parameters for target function.
 		h    handler
 		req  *http.Request
-		want want
+		want hwant
 	}{
 		{
 			name: "Empty POST request",
@@ -105,7 +105,7 @@ func Test_handler_postURL(t *testing.T) {
 				r.Header.Set("content-type", "test")
 				return r
 			}(),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Content type must be \"text/plain\"\n",
 				contentType: "text/plain; charset=utf-8",
@@ -119,7 +119,7 @@ func Test_handler_postURL(t *testing.T) {
 				r.Header.Add("content-type", "text/plain; charset=utf-8")
 				return r
 			}(),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid URL\n",
 				contentType: "text/plain; charset=utf-8",
@@ -134,7 +134,7 @@ func Test_handler_postURL(t *testing.T) {
 
 				return r
 			}(),
-			want: want{
+			want: hwant{
 				status:      http.StatusCreated,
 				data:        "http://127.0.0.1:8080/AAAAAAA",
 				contentType: "text/plain",
@@ -160,7 +160,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 		// Named input parameters for target function.
 		h    handler
 		req  *http.Request
-		want want
+		want hwant
 	}{
 
 		{
@@ -171,7 +171,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 				r.Header.Set("content-type", "test")
 				return r
 			}(),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Content type must be \"application/json\"\n",
 				contentType: "text/plain; charset=utf-8",
@@ -185,7 +185,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 				r.Header.Add("content-type", "application/json")
 				return r
 			}(),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Can not unmarshal JSON\n",
 				contentType: "text/plain; charset=utf-8",
@@ -199,7 +199,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 				r.Header.Add("content-type", "application/json")
 				return r
 			}(),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid URL\n",
 				contentType: "text/plain; charset=utf-8",
@@ -214,7 +214,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 
 				return r
 			}(),
-			want: want{
+			want: hwant{
 				status:      http.StatusCreated,
 				data:        `{"result":"http://127.0.0.1:8080/AAAAAAA"}`,
 				contentType: "application/json",
@@ -243,13 +243,13 @@ func Test_handler_getFullURL(t *testing.T) {
 		// Named input parameters for target function.
 		h    handler
 		req  *http.Request
-		want want
+		want hwant
 	}{
 		{
 			name: "Unkonwn short URL",
 			h:    handler{service: &testService{urls: make(map[string]string)}},
 			req:  httptest.NewRequest(http.MethodGet, "/", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Short URL not found\n",
 				contentType: "text/plain; charset=utf-8",
@@ -259,7 +259,7 @@ func Test_handler_getFullURL(t *testing.T) {
 			name: "Valid request",
 			h:    handler{service: &testService{urls: map[string]string{"AAAAAAA": "https://example.com"}}},
 			req:  validReq,
-			want: want{
+			want: hwant{
 				status:      http.StatusTemporaryRedirect,
 				data:        "<a href=\"https://example.com\">Temporary Redirect</a>.\n\n",
 				contentType: "text/html; charset=utf-8",
