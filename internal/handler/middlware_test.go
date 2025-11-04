@@ -104,6 +104,20 @@ func Test_extractMiddlware(t *testing.T) {
 				data:   []byte("gzip: invalid header\n"),
 			},
 		},
+		{
+			name: "Request without encoding",
+			h:    http.HandlerFunc(emptyHandler),
+			req: func() *http.Request {
+				data := []byte("Hello, world!")
+
+				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(data))
+				return r
+			}(),
+			want: want{
+				status: http.StatusOK,
+				data:   []byte("Hello, world!"),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
