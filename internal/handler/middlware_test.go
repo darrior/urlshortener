@@ -23,6 +23,10 @@ func echoHandler(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if err := req.Body.Close(); err != nil {
+		http.Error(res, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	res.Header().Set("content-type", "application/json")
 	res.Header().Set("content-length", strconv.Itoa(len(data)))
