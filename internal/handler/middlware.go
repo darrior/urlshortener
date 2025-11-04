@@ -131,6 +131,11 @@ func compressMiddlware(h http.Handler) http.Handler {
 			return
 		}
 
+		if err := w.Close(); err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		res.Header().Set("conent-length", strconv.Itoa(n))
 		res.Header().Set("content-encoding", "gzip")
 	}

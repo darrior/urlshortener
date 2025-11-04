@@ -43,18 +43,65 @@ func Test_extractMiddlware(t *testing.T) {
 			h:    http.HandlerFunc(emptyHandler),
 			req: func() *http.Request {
 				data := []byte("Hello, world!")
-				var body []byte
-				wbody := bytes.NewBuffer(body)
-				g, _ := gzip.NewWriterLevel(wbody, gzip.BestSpeed)
+
+				var body bytes.Buffer
+
+				g, _ := gzip.NewWriterLevel(&body, gzip.BestSpeed)
 				_, err := g.Write(data)
 				assert.NoError(t, err)
 
-				r := httptest.NewRequest(http.MethodPost, "/", wbody)
+				err = g.Close()
+				assert.NoError(t, err)
+
+				data, err = io.ReadAll(&body)
+				assert.NoError(t, err)
+
+				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(data))
+				r.Header.Set("content-encoding", "gzip")
 				return r
 			}(),
 			want: want{
 				status: http.StatusOK,
 				data:   []byte("Hello, world!"),
+			},
+		},
+		{
+			name: "Invalid gzip",
+			h:    http.HandlerFunc(emptyHandler),
+			req: func() *http.Request {
+				data := []byte("Hello, world!")
+
+				var body bytes.Buffer
+
+				g, _ := gzip.NewWriterLevel(&body, gzip.BestSpeed)
+				_, err := g.Write(data)
+				assert.NoError(t, err)
+
+				data, err = io.ReadAll(&body)
+				assert.NoError(t, err)
+
+				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(data))
+				r.Header.Set("content-encoding", "gzip")
+				return r
+			}(),
+			want: want{
+				status: http.StatusInternalServerError,
+				data:   []byte("unexpected EOF\n"),
+			},
+		},
+		{
+			name: "Invalid gzip header",
+			h:    http.HandlerFunc(emptyHandler),
+			req: func() *http.Request {
+				data := []byte("Hello, world!")
+
+				r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(data))
+				r.Header.Set("content-encoding", "gzip")
+				return r
+			}(),
+			want: want{
+				status: http.StatusInternalServerError,
+				data:   []byte("gzip: invalid header\n"),
 			},
 		},
 	}
@@ -67,6 +114,8 @@ func Test_extractMiddlware(t *testing.T) {
 
 			resp := res.Result()
 			data, err := io.ReadAll(resp.Body)
+
+			t.Log(resp)
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.want.status, resp.StatusCode)
@@ -81,9 +130,7 @@ func Test_compressMiddlware(t *testing.T) {
 		// Named input parameters for target function.
 		h    http.Handler
 		want http.Handler
-	}{
-		// TODO: Add test cases.
-	}
+	}{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := compressMiddlware(tt.h)
