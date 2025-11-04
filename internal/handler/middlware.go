@@ -125,8 +125,8 @@ func compressMiddlware(h http.Handler) http.Handler {
 
 		if !strings.Contains(res.Header().Get("content-type"), "application/json") &&
 			!strings.Contains(res.Header().Get("content-type"), "text/html") {
-			_, _ = res.Write(buf.Bytes())
 			res.WriteHeader(newRes.status)
+			_, _ = res.Write(buf.Bytes())
 
 			return
 		}

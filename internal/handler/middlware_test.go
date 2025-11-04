@@ -133,8 +133,11 @@ func Test_extractMiddlware(t *testing.T) {
 
 			resp := res.Result()
 			data, err := io.ReadAll(resp.Body)
-
 			assert.NoError(t, err)
+
+			err = resp.Body.Close()
+			assert.NoError(t, err)
+
 			assert.Equal(t, tt.want.status, resp.StatusCode)
 			assert.Equal(t, tt.want.data, data)
 		})
@@ -225,8 +228,11 @@ func Test_compressMiddlware(t *testing.T) {
 
 			resp := res.Result()
 			data, err := io.ReadAll(resp.Body)
-
 			assert.NoError(t, err)
+
+			err = resp.Body.Close()
+			assert.NoError(t, err)
+
 			assert.Equal(t, tt.want.status, resp.StatusCode)
 			assert.Equal(t, tt.want.data, data)
 		})
