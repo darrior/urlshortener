@@ -12,11 +12,12 @@ test path="./...":
 
 # Calculate test coverage.
 cover path="./...":
-    @go test ./... -coverprofile /tmp/cover.out && go tool cover -html cover.out
+    go test ./... -coverprofile /tmp/cover.out && go tool cover -html cover.out
     @rm /tmp/cover.out
 
 cover-html:
-    go tool cover -html cover.out
+    go test ./... -coverprofile /tmp/cover.out && go tool cover -html /tmp/cover.out
+    @rm /tmp/cover.out
 
 # Run golangci-lint.
 lint path="./...":
