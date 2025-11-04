@@ -6,8 +6,8 @@ func (s *Server) addRoutes() {
 
 	s.mux.HandleFunc("/", s.h.errorHandler)
 
-	s.mux.Get("/{url_id}", s.h.getFullURL)
+	s.mux.With(compressMiddlware).Get("/{url_id}", s.h.getFullURL)
 
-	s.mux.With(compressMiddlware).Post("/", s.h.postURL)
-	s.mux.Post("/api/shorten", s.h.postAPIShorten)
+	s.mux.Post("/", s.h.postURL)
+	s.mux.With(compressMiddlware).Post("/api/shorten", s.h.postAPIShorten)
 }
