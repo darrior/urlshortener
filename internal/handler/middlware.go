@@ -3,10 +3,10 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -22,18 +22,29 @@ type loggingResponseWriter struct {
 	responseData *responseData
 }
 
-func (r *loggingResponseWriter) Write(b []byte) (int, error) {
-	size, err := r.ResponseWriter.Write(b)
-	r.responseData.size = size
+var _ http.ResponseWriter = new(loggingResponseWriter)
+
+func (l *loggingResponseWriter) Write(b []byte) (int, error) {
+	size, err := l.ResponseWriter.Write(b)
+	l.responseData.size = size
 	return size, err
 }
 
-func (r *loggingResponseWriter) WriteHeader(status int) {
-	r.ResponseWriter.WriteHeader(status)
-	r.responseData.status = status
+func (l *loggingResponseWriter) WriteHeader(status int) {
+	l.ResponseWriter.WriteHeader(status)
+	l.responseData.status = status
 }
 
-var _ http.ResponseWriter = new(loggingResponseWriter)
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	writer io.Writer
+}
+
+var _ http.ResponseWriter = new(gzipResponseWriter)
+
+func (g *gzipResponseWriter) Write(data []byte) (int, error) {
+	return g.writer.Write(data)
+}
 
 func logMiddlware(h http.Handler) http.Handler {
 	logHandler := func(res http.ResponseWriter, req *http.Request) {
@@ -57,7 +68,6 @@ func logMiddlware(h http.Handler) http.Handler {
 			Int("status code", lres.responseData.status).
 			Int("size", lres.responseData.size).
 			Msg("response written")
-
 	}
 
 	return http.HandlerFunc(logHandler)
@@ -65,35 +75,75 @@ func logMiddlware(h http.Handler) http.Handler {
 
 func extractMiddlware(h http.Handler) http.Handler {
 	extractHandler := func(res http.ResponseWriter, req *http.Request) {
-		encoding := req.Header.Get("content-encoding")
-		if encoding == "" {
+		if !strings.Contains(req.Header.Get("content-encoding"), "gzip") {
 			h.ServeHTTP(res, req)
 			return
 		}
 
-		if encoding != "gzip" {
-			http.Error(res, "Unsupported content encoding", http.StatusBadRequest)
-		}
+		b := req.Body
+		defer func() {
+			_ = b.Close()
+		}()
 
-		r, err := gzip.NewReader(req.Body)
+		r, err := gzip.NewReader(b)
 		if err != nil {
 			http.Error(res, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		defer func() {
+			_ = r.Close()
+		}()
 
-		defer r.Close()
-
-		data, err := io.ReadAll(r)
-		if err != nil {
-			http.Error(res, err.Error(), http.StatusInternalServerError)
-		}
-
-		req.Body = io.NopCloser(bytes.NewReader(data))
-		req.Header.Del("content-encoding")
-		req.Header.Set("content-length", strconv.Itoa(len(data)))
+		req.Body = r
 
 		h.ServeHTTP(res, req)
 	}
 
 	return http.HandlerFunc(extractHandler)
+}
+
+func compressMiddlware(h http.Handler) http.Handler {
+	compressHandler := func(res http.ResponseWriter, req *http.Request) {
+		if !checkEncoding(req.Header.Values("accept-encoding"), "gzip") {
+			h.ServeHTTP(res, req)
+			return
+		}
+
+		var data []byte
+		buf := bytes.NewBuffer(data)
+		h.ServeHTTP(&gzipResponseWriter{res, buf}, req)
+
+		if !strings.Contains(res.Header().Get("content-type"), "application/json") &&
+			!strings.Contains(res.Header().Get("content-type"), "text/html") {
+			_, _ = res.Write(data)
+			return
+		}
+
+		w, err := gzip.NewWriterLevel(res, gzip.BestSpeed)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		n, err := w.Write(data)
+		if err != nil {
+			http.Error(res, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		res.Header().Set("conent-length", strconv.Itoa(n))
+		res.Header().Set("content-encoding", "gzip")
+	}
+
+	return http.HandlerFunc(compressHandler)
+}
+
+func checkEncoding(encs []string, enc string) bool {
+	for _, e := range encs {
+		if strings.Contains(e, enc) {
+			return true
+		}
+	}
+
+	return false
 }
