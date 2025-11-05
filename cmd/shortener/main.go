@@ -28,7 +28,12 @@ func main() {
 		cancel()
 	}()
 
-	r, err := repository.NewFSRepository(ctx, c.StorageFile)
+	f, err := os.OpenFile(c.StorageFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Can not open storage file")
+	}
+
+	r, err := repository.NewFSRepository(ctx, f)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
 		os.Exit(-1)

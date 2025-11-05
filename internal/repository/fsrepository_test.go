@@ -12,69 +12,60 @@ import (
 func TestFSRepository_AddURL(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
-		file string
+		file *os.File
 
-		urls    storage
+		urls    urlStorage
 		id      string
 		url     string
 		wantErr bool
-		want    storage
+		want    urlStorage
 	}{
 		{
 			name: "Add URL to empty map",
 			urls: map[string]string{},
-			file: func() string {
+			file: func() *os.File {
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
 
-				err = f.Close()
-				assert.NoError(t, err)
-
-				return f.Name()
+				return f
 			}(),
 			id:      "test_id",
 			url:     "123456",
 			wantErr: false,
-			want:    storage{"test_id": "123456"},
+			want:    urlStorage{"test_id": "123456"},
 		},
 		{
 			name: "Add URL to non-empty map",
-			file: func() string {
+			file: func() *os.File {
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
 
-				err = f.Close()
-				assert.NoError(t, err)
-
-				return f.Name()
+				return f
 			}(),
-			urls:    storage{"id_test": "654321"},
+			urls:    urlStorage{"id_test": "654321"},
 			id:      "test_id",
 			url:     "123456",
 			wantErr: false,
-			want:    storage{"id_test": "654321", "test_id": "123456"},
+			want:    urlStorage{"id_test": "654321", "test_id": "123456"},
 		},
 		{
 			name: "Overwrite URL in map",
-			file: func() string {
+			file: func() *os.File {
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
 
-				err = f.Close()
-				assert.NoError(t, err)
-
-				return f.Name()
+				return f
 			}(),
-			urls:    storage{"test_id": "654321"},
+			urls:    urlStorage{"test_id": "654321"},
 			id:      "test_id",
 			url:     "123456",
 			wantErr: false,
-			want:    storage{"test_id": "123456"},
+			want:    urlStorage{"test_id": "123456"},
 		},
 		{
 			name: "Non empty file",
-			file: func() string {
-				urls := storage{"id_test": "654321"}
+			file: func() *os.File {
+				urls := urlStorage{"id_test": "654321"}
 
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
@@ -83,22 +74,19 @@ func TestFSRepository_AddURL(t *testing.T) {
 				err = enc.Encode(urls)
 				assert.NoError(t, err)
 
-				err = f.Close()
-				assert.NoError(t, err)
-
-				return f.Name()
+				return f
 			}(),
-			urls:    storage{},
+			urls:    urlStorage{},
 			id:      "test_id",
 			url:     "123456",
 			wantErr: false,
-			want:    storage{"id_test": "654321", "test_id": "123456"},
+			want:    urlStorage{"id_test": "654321", "test_id": "123456"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			defer func() {
-				err := os.Remove(tt.file)
+				err := os.Remove(tt.file.Name())
 				assert.NoError(t, err)
 			}()
 
@@ -118,7 +106,6 @@ func TestFSRepository_AddURL(t *testing.T) {
 
 			assert.NoError(t, gotErr)
 			assert.Equal(t, tt.want, f.urls)
-			assert.FileExists(t, tt.file)
 		})
 	}
 }
@@ -127,33 +114,30 @@ func TestFSRepository_GetURL(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for receiver constructor.
-		file string
+		file *os.File
 		// Named input parameters for target function.
-		urls    storage
+		urls    urlStorage
 		id      string
 		want    string
 		wantErr bool
 	}{
 		{
 			name: "Valid get from map",
-			file: func() string {
+			file: func() *os.File {
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
 
-				err = f.Close()
-				assert.NoError(t, err)
-
-				return f.Name()
+				return f
 			}(),
-			urls:    storage{"test": "123"},
+			urls:    urlStorage{"test": "123"},
 			id:      "test",
 			want:    "123",
 			wantErr: false,
 		},
 		{
 			name: "Non empty file",
-			file: func() string {
-				urls := storage{"test": "123"}
+			file: func() *os.File {
+				urls := urlStorage{"test": "123"}
 
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
@@ -162,28 +146,22 @@ func TestFSRepository_GetURL(t *testing.T) {
 				err = enc.Encode(urls)
 				assert.NoError(t, err)
 
-				err = f.Close()
-				assert.NoError(t, err)
-
-				return f.Name()
+				return f
 			}(),
-			urls:    storage{},
+			urls:    urlStorage{},
 			id:      "test",
 			want:    "123",
 			wantErr: false,
 		},
 		{
 			name: "Unexisting id",
-			file: func() string {
+			file: func() *os.File {
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
 
-				err = f.Close()
-				assert.NoError(t, err)
-
-				return f.Name()
+				return f
 			}(),
-			urls:    storage{},
+			urls:    urlStorage{},
 			id:      "test",
 			want:    "",
 			wantErr: true,

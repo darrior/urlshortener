@@ -2,39 +2,34 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"os"
 	"sync"
 
+	"github.com/darrior/urlshortener/internal/repository/storage"
 	"github.com/rs/zerolog/log"
 )
 
-type storage map[string]string
+type urlStorage map[string]string
 
 type FSRepository struct {
 	lock sync.Mutex
-	urls storage
+	urls urlStorage
 	file *os.File
 }
 
 var _ Repository = (*FSRepository)(nil)
 
-func NewFSRepository(ctx context.Context, file string) (*FSRepository, error) {
-	urls, err := readFile(file)
-	if err != nil {
+func NewFSRepository(ctx context.Context, file *os.File) (*FSRepository, error) {
+	var urls urlStorage
+	if err := storage.ReadFile(file, &urls); err != nil {
 		log.Warn().Err(err).Msg("Can not read urls from storage file")
-		urls = storage{}
-	}
-
-	f, err := os.OpenFile(file, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
-	if err != nil {
-		return nil, err
+		urls = urlStorage{}
 	}
 
 	r := &FSRepository{
 		lock: sync.Mutex{},
 		urls: urls,
-		file: f,
+		file: file,
 	}
 
 	go func() {
@@ -51,7 +46,7 @@ func (f *FSRepository) AddURL(id, url string) error {
 	defer f.lock.Unlock()
 
 	f.urls[id] = url
-	if err := f.updateFile(); err != nil {
+	if err := storage.UpdateFile(f.file, f.urls); err != nil {
 		return err
 	}
 
@@ -69,39 +64,4 @@ func (f *FSRepository) GetURL(id string) (string, error) {
 
 func (f *FSRepository) close() error {
 	return f.file.Close()
-}
-
-func (f *FSRepository) updateFile() error {
-	if err := f.file.Truncate(0); err != nil {
-		return err
-	}
-
-	if _, err := f.file.Seek(0, 0); err != nil {
-		return err
-	}
-
-	enc := json.NewEncoder(f.file)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(f.urls); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func readFile(filename string) (storage, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return storage{}, err
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-
-	var s storage
-	dec := json.NewDecoder(file)
-	if err := dec.Decode(&s); err != nil {
-		return storage{}, err
-	}
-	return s, nil
 }
