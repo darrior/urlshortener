@@ -26,7 +26,7 @@ func NewFSRepository(ctx context.Context, file string) (*FSRepository, error) {
 		urls = storage{}
 	}
 
-	f, err := os.Create(file)
+	f, err := os.OpenFile(file, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, err
 	}
