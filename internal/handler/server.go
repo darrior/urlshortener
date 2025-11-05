@@ -7,7 +7,6 @@ import (
 
 	"github.com/darrior/urlshortener/internal/service"
 	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog/log"
 )
 
 type Server struct {
@@ -34,19 +33,18 @@ func NewServer(address string, service *service.Service) *Server {
 	return &s
 }
 
-func (s *Server) Run(ctx context.Context) error {
-
-	go func() {
-		<-ctx.Done()
-		if err := s.srv.Close(); err != nil {
-			log.Error().Err(err).Msg("Can not stop server properly")
-		}
-		log.Info().Msg("Server shutdown gracefuly")
-	}()
-
+func (s *Server) Run() error {
 	if err := s.srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
+	return nil
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	<-ctx.Done()
+	if err := s.srv.Close(); err != nil {
+		return err
+	}
 	return nil
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -38,8 +37,16 @@ func main() {
 	s := service.NewService(r, c.BaseAddress.String())
 
 	srv := handler.NewServer(string(c.ListenAddress), s)
-	if err := srv.Run(ctx); err != nil {
-		fmt.Printf("An error occured: %s\n", err.Error())
+	go func() {
+		if err := srv.Stop(ctx); err != nil {
+			log.Error().Err(err).Msg("Can not stop server properly")
+			return
+		}
+		log.Info().Msg("Shutting down server gracefuly")
+	}()
+
+	if err := srv.Run(); err != nil {
+		log.Error().Err(err).Msg("Unexpected server error")
 		os.Exit(1)
 	}
 }
