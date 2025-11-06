@@ -30,7 +30,7 @@ func (t *testService) GetURL(id string) (string, error) {
 	return url, nil
 }
 
-type want struct {
+type hwant struct {
 	status      int
 	data        string
 	contentType string
@@ -42,13 +42,13 @@ func Test_handler_errorHandler(t *testing.T) {
 		// Named input parameters for target function.
 		h    handler
 		req  *http.Request
-		want want
+		want hwant
 	}{
 		{
 			name: "GET request to root",
 			h:    handler{service: &testService{}},
 			req:  httptest.NewRequest(http.MethodGet, "/", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid request\n",
 				contentType: "text/plain; charset=utf-8",
@@ -58,7 +58,7 @@ func Test_handler_errorHandler(t *testing.T) {
 			name: "DELETE request to root",
 			h:    handler{service: &testService{}},
 			req:  httptest.NewRequest(http.MethodDelete, "/", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid request\n",
 				contentType: "text/plain; charset=utf-8",
@@ -68,7 +68,7 @@ func Test_handler_errorHandler(t *testing.T) {
 			name: "GET request to some path",
 			h:    handler{service: &testService{}},
 			req:  httptest.NewRequest(http.MethodGet, "/first/second", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid request\n",
 				contentType: "text/plain; charset=utf-8",
@@ -90,24 +90,22 @@ func Test_handler_errorHandler(t *testing.T) {
 }
 
 func Test_handler_postURL(t *testing.T) {
-	emptyReq := httptest.NewRequest(http.MethodPost, "/", nil)
-	emptyReq.Header.Add("content-type", "text/plain")
-
-	validReq := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader("https://example.com"))
-	validReq.Header.Add("content-type", "text/plain")
-
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
 		h    handler
 		req  *http.Request
-		want want
+		want hwant
 	}{
 		{
 			name: "Empty POST request",
 			h:    handler{service: &testService{}},
-			req:  httptest.NewRequest(http.MethodPost, "/", nil),
-			want: want{
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Set("content-type", "test")
+				return r
+			}(),
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Content type must be \"text/plain\"\n",
 				contentType: "text/plain; charset=utf-8",
@@ -116,8 +114,12 @@ func Test_handler_postURL(t *testing.T) {
 		{
 			name: "Empty POST request with header",
 			h:    handler{service: &testService{}},
-			req:  emptyReq,
-			want: want{
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Add("content-type", "text/plain; charset=utf-8")
+				return r
+			}(),
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Invalid URL\n",
 				contentType: "text/plain; charset=utf-8",
@@ -126,8 +128,13 @@ func Test_handler_postURL(t *testing.T) {
 		{
 			name: "Valid request",
 			h:    handler{service: &testService{urls: make(map[string]string)}},
-			req:  validReq,
-			want: want{
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader("https://example.com"))
+				r.Header.Add("content-type", "text/plain")
+
+				return r
+			}(),
+			want: hwant{
 				status:      http.StatusCreated,
 				data:        "http://127.0.0.1:8080/AAAAAAA",
 				contentType: "text/plain",
@@ -136,10 +143,89 @@ func Test_handler_postURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// TODO: construct the receiver type.
 			res := httptest.NewRecorder()
 
 			tt.h.postURL(res, tt.req)
+
+			assert.Equal(t, tt.want.status, res.Code)
+			assert.Equal(t, tt.want.data, res.Body.String())
+			assert.Equal(t, tt.want.contentType, res.Header().Get("content-type"))
+		})
+	}
+}
+
+func Test_handler_postAPIShorten(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		h    handler
+		req  *http.Request
+		want hwant
+	}{
+
+		{
+			name: "Empty POST request",
+			h:    handler{service: &testService{}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Set("content-type", "test")
+				return r
+			}(),
+			want: hwant{
+				status:      http.StatusBadRequest,
+				data:        "Content type must be \"application/json\"\n",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "Empty POST request with header",
+			h:    handler{service: &testService{}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", nil)
+				r.Header.Add("content-type", "application/json")
+				return r
+			}(),
+			want: hwant{
+				status:      http.StatusBadRequest,
+				data:        "Can not unmarshal JSON\n",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "Invalid URL",
+			h:    handler{service: &testService{}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"url": ""}`))
+				r.Header.Add("content-type", "application/json")
+				return r
+			}(),
+			want: hwant{
+				status:      http.StatusBadRequest,
+				data:        "Invalid URL\n",
+				contentType: "text/plain; charset=utf-8",
+			},
+		},
+		{
+			name: "Valid request",
+			h:    handler{service: &testService{urls: make(map[string]string)}},
+			req: func() *http.Request {
+				r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader(`{"url": "http://example.com"}`))
+				r.Header.Add("content-type", "application/json")
+
+				return r
+			}(),
+			want: hwant{
+				status:      http.StatusCreated,
+				data:        `{"result":"http://127.0.0.1:8080/AAAAAAA"}`,
+				contentType: "application/json",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := httptest.NewRecorder()
+
+			tt.h.postAPIShorten(res, tt.req)
 
 			assert.Equal(t, tt.want.status, res.Code)
 			assert.Equal(t, tt.want.data, res.Body.String())
@@ -157,13 +243,13 @@ func Test_handler_getFullURL(t *testing.T) {
 		// Named input parameters for target function.
 		h    handler
 		req  *http.Request
-		want want
+		want hwant
 	}{
 		{
 			name: "Unkonwn short URL",
 			h:    handler{service: &testService{urls: make(map[string]string)}},
 			req:  httptest.NewRequest(http.MethodGet, "/", nil),
-			want: want{
+			want: hwant{
 				status:      http.StatusBadRequest,
 				data:        "Short URL not found\n",
 				contentType: "text/plain; charset=utf-8",
@@ -173,7 +259,7 @@ func Test_handler_getFullURL(t *testing.T) {
 			name: "Valid request",
 			h:    handler{service: &testService{urls: map[string]string{"AAAAAAA": "https://example.com"}}},
 			req:  validReq,
-			want: want{
+			want: hwant{
 				status:      http.StatusTemporaryRedirect,
 				data:        "<a href=\"https://example.com\">Temporary Redirect</a>.\n\n",
 				contentType: "text/html; charset=utf-8",

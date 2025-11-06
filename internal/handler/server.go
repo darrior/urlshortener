@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"errors"
 	"net/http"
 
 	"github.com/darrior/urlshortener/internal/service"
@@ -8,9 +10,9 @@ import (
 )
 
 type Server struct {
-	mux     *chi.Mux
-	h       *handler
-	address string
+	mux *chi.Mux
+	h   *handler
+	srv *http.Server
 }
 
 func NewServer(address string, service *service.Service) *Server {
@@ -19,14 +21,30 @@ func NewServer(address string, service *service.Service) *Server {
 		h: &handler{
 			service: service,
 		},
-		address: address,
 	}
 
+	srv := http.Server{
+		Addr:    address,
+		Handler: s.mux,
+	}
+	s.srv = &srv
 	s.addRoutes()
 
 	return &s
 }
 
 func (s *Server) Run() error {
-	return http.ListenAndServe(s.address, s.mux)
+	if err := s.srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+
+	return nil
+}
+
+func (s *Server) Stop(ctx context.Context) error {
+	<-ctx.Done()
+	if err := s.srv.Close(); err != nil {
+		return err
+	}
+	return nil
 }
