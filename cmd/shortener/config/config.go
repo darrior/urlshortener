@@ -35,6 +35,7 @@ type Config struct {
 	ListenAddress host    `env:"LISTEN_ADDRESS"`
 	BaseAddress   url.URL `env:"BASE_ADDRESS"`
 	StorageFile   string  `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN   string  `env:"DATADBASE_DSN"`
 }
 
 func DefaultConfig() Config {

@@ -23,6 +23,21 @@ func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
 
 }
 
+func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
+	shortURL := req.PathValue("url_id")
+	fullURL, err := h.service.GetURL(shortURL)
+	if err != nil {
+		http.Error(res, "Short URL not found", http.StatusBadRequest)
+		return
+	}
+
+	http.Redirect(res, req, fullURL, http.StatusTemporaryRedirect)
+}
+
+func (h *handler) getPing(res http.ResponseWriter, req *http.Request) {
+
+}
+
 func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 	if !strings.HasPrefix(req.Header.Get("content-type"), "text/plain") {
 		http.Error(res, `Content type must be "text/plain"`, http.StatusBadRequest)
@@ -92,15 +107,4 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("content-length", strconv.Itoa(len(data)))
 	res.WriteHeader(http.StatusCreated)
 	_, _ = res.Write(data)
-}
-
-func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
-	shortURL := req.PathValue("url_id")
-	fullURL, err := h.service.GetURL(shortURL)
-	if err != nil {
-		http.Error(res, "Short URL not found", http.StatusBadRequest)
-		return
-	}
-
-	http.Redirect(res, req, fullURL, http.StatusTemporaryRedirect)
 }

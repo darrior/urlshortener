@@ -10,6 +10,7 @@ import (
 	"github.com/darrior/urlshortener/internal/handler"
 	"github.com/darrior/urlshortener/internal/repository"
 	"github.com/darrior/urlshortener/internal/service"
+	_ "github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 )
 
