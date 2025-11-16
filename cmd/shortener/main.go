@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,12 +31,7 @@ func main() {
 		cancel()
 	}()
 
-	f, err := os.OpenFile(c.StorageFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can not open storage file")
-	}
-
-	r, err := repository.NewFSRepository(f)
+	r, err := initRepository(c)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
 		os.Exit(-1)
@@ -46,18 +42,7 @@ func main() {
 		}
 	}()
 
-	db, err := sql.Open("pgx", c.DatabaseDSN.ConnString())
-	if err != nil {
-		log.Error().Err(err).Msg("Can not connect to database")
-		os.Exit(-1)
-	}
-	defer func() {
-		if err := db.Close(); err != nil {
-			log.Error().Err(err).Msg("Can not close connection to database properly")
-		}
-	}()
-
-	s := service.NewService(r, c.BaseAddress.String(), db)
+	s := service.NewService(r, c.BaseAddress.String())
 
 	srv := handler.NewServer(string(c.ListenAddress), s)
 	go func() {
@@ -72,4 +57,35 @@ func main() {
 		log.Error().Err(err).Msg("Unexpected server error")
 		os.Exit(1)
 	}
+}
+
+func initRepository(cfg config.Config) (repository.Repository, error) {
+	if cfg.DatabaseDSN != nil {
+		db, err := sql.Open("pgx", cfg.DatabaseDSN.ConnString())
+		if err != nil {
+			return nil, fmt.Errorf("can not open db connection: %w", err)
+		}
+		r, err := repository.NewDBRepository(db)
+		if err != nil {
+			return nil, fmt.Errorf("can not create DBRepository: %w", err)
+		}
+
+		return r, nil
+	}
+
+	if cfg.StorageFile != "" {
+		f, err := os.OpenFile(cfg.StorageFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+		if err != nil {
+			return nil, fmt.Errorf("can not open storage file: %w", err)
+		}
+
+		r, err := repository.NewFSRepository(f)
+		if err != nil {
+			return nil, fmt.Errorf("can not create FSRepository: %w", err)
+		}
+
+		return r, nil
+	}
+
+	return repository.NewMapRepository(), nil
 }
