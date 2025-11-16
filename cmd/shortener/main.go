@@ -37,24 +37,24 @@ func main() {
 	r, err := repository.NewFSRepository(f)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
-	} else {
-		defer func() {
-			if err := r.Close(); err != nil {
-				log.Error().Err(err).Msg("Can not close repository")
-			}
-		}()
+		os.Exit(-1)
 	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Error().Err(err).Msg("Can not close repository")
+		}
+	}()
 
 	db, err := pgx.ConnectConfig(ctx, c.DatabaseDSN)
 	if err != nil {
 		log.Error().Err(err).Msg("Can not connect to database")
-		os.Exit(-1)
+	} else {
+		defer func() {
+			if err := db.Close(ctx); err != nil {
+				log.Error().Err(err).Msg("Can not close connection to database properly")
+			}
+		}()
 	}
-	defer func() {
-		if err := db.Close(ctx); err != nil {
-			log.Error().Err(err).Msg("Can not close connection to database properly")
-		}
-	}()
 
 	s := service.NewService(r, c.BaseAddress.String())
 
