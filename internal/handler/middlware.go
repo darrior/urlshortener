@@ -39,8 +39,6 @@ type gzipResponseWriter struct {
 	writer io.Writer
 }
 
-var _ http.ResponseWriter = new(gzipResponseWriter)
-
 func (g *gzipResponseWriter) Write(data []byte) (int, error) {
 	return g.writer.Write(data)
 }
