@@ -3,7 +3,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
@@ -25,14 +24,12 @@ type IService interface {
 type Service struct {
 	data        repository.Repository
 	baseAddress string
-	db          *sql.DB
 }
 
-func NewService(data repository.Repository, baseAddress string, db *sql.DB) *Service {
+func NewService(data repository.Repository, baseAddress string) *Service {
 	return &Service{
 		data:        data,
 		baseAddress: baseAddress,
-		db:          db,
 	}
 }
 
@@ -64,5 +61,9 @@ func (s *Service) GetURL(ctx context.Context, id string) (string, error) {
 }
 
 func (s *Service) Ping(ctx context.Context) error {
-	return s.db.PingContext(ctx)
+	if err := s.data.Ping(ctx); err != nil {
+		return err
+	}
+
+	return nil
 }

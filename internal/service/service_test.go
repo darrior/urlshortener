@@ -30,6 +30,10 @@ func (t *testRepository) GetURL(_ context.Context, id string) (string, error) {
 	return url, nil
 }
 
+func (t *testRepository) Ping(_ context.Context) error {
+	return nil
+}
+
 func (t *testRepository) Close() error {
 	return nil
 }
@@ -54,7 +58,7 @@ func TestService_AddURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(tt.data, "http://127.0.0.1:8080", nil)
+			s := NewService(tt.data, "http://127.0.0.1:8080")
 			got, gotErr := s.AddURL(context.TODO(), tt.url)
 
 			if tt.wantErr {
@@ -116,7 +120,7 @@ func TestService_GetURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(tt.data, "http://127.0.0.1:8080", nil)
+			s := NewService(tt.data, "http://127.0.0.1:8080")
 			got, gotErr := s.GetURL(context.TODO(), tt.id)
 
 			if tt.wantErr {

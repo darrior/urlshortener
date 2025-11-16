@@ -9,6 +9,7 @@ import (
 type Repository interface {
 	AddURL(ctx context.Context, id, url string) (err error)
 	GetURL(ctx context.Context, id string) (url string, err error)
+	Ping(ctx context.Context) (err error)
 	Close() (err error)
 }
 

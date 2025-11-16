@@ -54,6 +54,10 @@ func (f *FSRepository) GetURL(_ context.Context, id string) (string, error) {
 	return url, nil
 }
 
+func (f *FSRepository) Ping(_ context.Context) error {
+	return nil
+}
+
 func (f *FSRepository) Close() error {
 	return f.file.Close()
 }
