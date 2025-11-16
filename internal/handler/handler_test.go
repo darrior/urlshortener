@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 
 type testService struct {
 	urls map[string]string
+	ping bool
 }
 
 var _ service.IService = (*testService)(nil)
@@ -28,6 +30,13 @@ func (t *testService) GetURL(id string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (t *testService) Ping(ctx context.Context) error {
+	if !t.ping {
+		return errors.New("")
+	}
+	return nil
 }
 
 type hwant struct {
@@ -276,6 +285,41 @@ func Test_handler_getFullURL(t *testing.T) {
 			assert.Equal(t, tt.want.status, res.Code)
 			assert.Equal(t, tt.want.data, res.Body.String())
 			assert.Equal(t, tt.want.contentType, res.Header().Get("content-type"))
+		})
+	}
+}
+
+func Test_handler_getPing(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		h    handler
+		req  *http.Request
+		want hwant
+	}{
+		{
+			name: "Ping OK",
+			h:    handler{service: &testService{ping: true}},
+			req:  httptest.NewRequest(http.MethodGet, "/ping", nil),
+			want: hwant{
+				status: http.StatusOK,
+			},
+		},
+		{
+			name: "Ping not OK",
+			h:    handler{service: &testService{ping: false}},
+			req:  httptest.NewRequest(http.MethodGet, "/ping", nil),
+			want: hwant{
+				status: http.StatusInternalServerError,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res := httptest.NewRecorder()
+			tt.h.getPing(res, tt.req)
+
+			assert.Equal(t, tt.want.status, res.Code)
 		})
 	}
 }

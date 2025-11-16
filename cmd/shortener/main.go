@@ -10,7 +10,7 @@ import (
 	"github.com/darrior/urlshortener/internal/handler"
 	"github.com/darrior/urlshortener/internal/repository"
 	"github.com/darrior/urlshortener/internal/service"
-	_ "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/rs/zerolog/log"
 )
 
@@ -39,10 +39,20 @@ func main() {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
 		os.Exit(-1)
 	}
-
 	defer func() {
 		if err := r.Close(); err != nil {
 			log.Error().Err(err).Msg("Can not close repository")
+		}
+	}()
+
+	db, err := pgx.ConnectConfig(ctx, c.DatabaseDSN)
+	if err != nil {
+		log.Error().Err(err).Msg("Can not connect to database")
+		os.Exit(-1)
+	}
+	defer func() {
+		if err := db.Close(ctx); err != nil {
+			log.Error().Err(err).Msg("Can not close connection to database properly")
 		}
 	}()
 

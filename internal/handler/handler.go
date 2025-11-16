@@ -35,7 +35,12 @@ func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *handler) getPing(res http.ResponseWriter, req *http.Request) {
+	if err := h.service.Ping(req.Context()); err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
+	res.WriteHeader(http.StatusOK)
 }
 
 func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {

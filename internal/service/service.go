@@ -2,11 +2,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 
 	"github.com/darrior/urlshortener/internal/repository"
+	"github.com/jackc/pgx/v5"
 )
 
 var (
@@ -17,11 +19,13 @@ var (
 type IService interface {
 	AddURL(longURL string) (shortURL string, err error)
 	GetURL(id string) (longURL string, err error)
+	Ping(ctx context.Context) (err error)
 }
 
 type Service struct {
 	data        repository.Repository
 	baseAddress string
+	db          *pgx.Conn
 }
 
 var _ IService = (*Service)(nil)
@@ -58,4 +62,8 @@ func (s *Service) GetURL(id string) (string, error) {
 	}
 
 	return longURL, nil
+}
+
+func (s *Service) Ping(ctx context.Context) error {
+	return s.db.Ping(ctx)
 }
