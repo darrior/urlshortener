@@ -19,7 +19,7 @@ type host string
 
 const (
 	_defaultListenAddress  host   = "127.0.0.1:8080"
-	_defaultStoragFilePath string = "urls.json"
+	_defaultStoragFilePath string = ""
 )
 
 var _defaultBaseAddress = url.URL{
@@ -27,10 +27,7 @@ var _defaultBaseAddress = url.URL{
 	Host:   "127.0.0.1:8080",
 }
 
-var _defaultDatabaseDSN = func() *pgx.ConnConfig {
-	conf, _ := pgx.ParseConfig("postgresql://postgres:postgres@localhost:5432/urls?sslmode=disable")
-	return conf
-}()
+var _defaultDatabaseDSN *pgx.ConnConfig = nil
 
 var (
 	errorValidateListenAddress = errors.New("listen address must be in form host:port")
