@@ -5,18 +5,24 @@ Learning project for Yandex Practicum cources.
 ## Build
 
 ```sh
-go build -o urlshortener cmd/shortener/main.go
+just build
+```
+
+## Run
+
+```sh
+just run
 ```
 
 ## Run tests
 
 ```sh
-go test ./...
+just test
 ```
 
 ## Run linter
 
 ```sh
 go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.5.0
-golangci-lint run
+just lint
 ```
