@@ -25,7 +25,7 @@ func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
 
 func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
 	shortURL := req.PathValue("url_id")
-	fullURL, err := h.service.GetURL(shortURL)
+	fullURL, err := h.service.GetURL(req.Context(), shortURL)
 	if err != nil {
 		http.Error(res, "Short URL not found", http.StatusBadRequest)
 		return
@@ -61,7 +61,7 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortURL, err := h.service.AddURL(longURL)
+	shortURL, err := h.service.AddURL(req.Context(), longURL)
 	if err != nil {
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
 		return
@@ -92,7 +92,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	shortURL, err := h.service.AddURL(reqData.URL)
+	shortURL, err := h.service.AddURL(req.Context(), reqData.URL)
 	if err != nil {
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
 		return

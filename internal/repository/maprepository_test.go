@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestMapRepository_AddURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := MapRepository{urls: tt.urls}
-			gotErr := r.AddURL(tt.id, tt.url)
+			gotErr := r.AddURL(context.TODO(), tt.id, tt.url)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)
@@ -82,7 +83,7 @@ func TestMapRepository_GetURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := MapRepository{urls: tt.urls}
-			got, gotErr := r.GetURL(tt.id)
+			got, gotErr := r.GetURL(context.TODO(), tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)

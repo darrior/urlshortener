@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -98,7 +99,7 @@ func TestFSRepository_AddURL(t *testing.T) {
 				f.urls = tt.urls
 			}
 
-			gotErr := f.AddURL(tt.id, tt.url)
+			gotErr := f.AddURL(context.TODO(), tt.id, tt.url)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)
@@ -177,7 +178,7 @@ func TestFSRepository_GetURL(t *testing.T) {
 				f.urls = tt.urls
 			}
 
-			got, gotErr := f.GetURL(tt.id)
+			got, gotErr := f.GetURL(context.TODO(), tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)

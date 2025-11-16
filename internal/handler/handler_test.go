@@ -19,11 +19,11 @@ type testService struct {
 
 var _ service.IService = (*testService)(nil)
 
-func (t *testService) AddURL(id string) (string, error) {
+func (t *testService) AddURL(_ context.Context, id string) (string, error) {
 	return "http://127.0.0.1:8080/AAAAAAA", nil
 }
 
-func (t *testService) GetURL(id string) (string, error) {
+func (t *testService) GetURL(_ context.Context, id string) (string, error) {
 	url, ok := t.urls[id]
 	if !ok {
 		return "", errors.New("")

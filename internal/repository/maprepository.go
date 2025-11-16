@@ -1,6 +1,9 @@
 package repository
 
-import "sync"
+import (
+	"context"
+	"sync"
+)
 
 type MapRepository struct {
 	lock sync.Mutex
@@ -14,7 +17,7 @@ func NewMapRepository() *MapRepository {
 	}
 }
 
-func (r *MapRepository) AddURL(id, url string) error {
+func (r *MapRepository) AddURL(_ context.Context, id, url string) error {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -23,7 +26,7 @@ func (r *MapRepository) AddURL(id, url string) error {
 	return nil
 }
 
-func (r *MapRepository) GetURL(id string) (string, error) {
+func (r *MapRepository) GetURL(_ context.Context, id string) (string, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 

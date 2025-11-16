@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"os"
 	"sync"
 
@@ -32,7 +33,7 @@ func NewFSRepository(file *os.File) (*FSRepository, error) {
 	return r, nil
 }
 
-func (f *FSRepository) AddURL(id, url string) error {
+func (f *FSRepository) AddURL(_ context.Context, id, url string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
@@ -44,7 +45,7 @@ func (f *FSRepository) AddURL(id, url string) error {
 	return nil
 }
 
-func (f *FSRepository) GetURL(id string) (string, error) {
+func (f *FSRepository) GetURL(_ context.Context, id string) (string, error) {
 	url, ok := f.urls[id]
 	if !ok {
 		return "", ErrorNotFound

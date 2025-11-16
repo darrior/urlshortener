@@ -2,12 +2,13 @@
 package repository
 
 import (
+	"context"
 	"errors"
 )
 
 type Repository interface {
-	AddURL(id, url string) (err error)
-	GetURL(id string) (url string, err error)
+	AddURL(ctx context.Context, id, url string) (err error)
+	GetURL(ctx context.Context, id string) (url string, err error)
 	Close() (err error)
 }
 

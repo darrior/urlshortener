@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 
 	"github.com/darrior/urlshortener/internal/repository"
@@ -15,13 +16,13 @@ type testRepository struct {
 
 var _ repository.Repository = (*testRepository)(nil)
 
-func (t *testRepository) AddURL(id, url string) error {
+func (t *testRepository) AddURL(_ context.Context, id, url string) error {
 	t.urls[id] = url
 
 	return nil
 }
 
-func (t *testRepository) GetURL(id string) (string, error) {
+func (t *testRepository) GetURL(_ context.Context, id string) (string, error) {
 	url, ok := t.urls[id]
 	if !ok {
 		return "", repository.ErrorNotFound
@@ -54,7 +55,7 @@ func TestService_AddURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewService(tt.data, "http://127.0.0.1:8080", nil)
-			got, gotErr := s.AddURL(tt.url)
+			got, gotErr := s.AddURL(context.TODO(), tt.url)
 
 			if tt.wantErr {
 				assert.EqualError(t, ErrorCannotAddURL, gotErr.Error())
@@ -116,7 +117,7 @@ func TestService_GetURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := NewService(tt.data, "http://127.0.0.1:8080", nil)
-			got, gotErr := s.GetURL(tt.id)
+			got, gotErr := s.GetURL(context.TODO(), tt.id)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)
