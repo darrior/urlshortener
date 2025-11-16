@@ -37,13 +37,13 @@ func main() {
 	r, err := repository.NewFSRepository(f)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
-		os.Exit(-1)
+	} else {
+		defer func() {
+			if err := r.Close(); err != nil {
+				log.Error().Err(err).Msg("Can not close repository")
+			}
+		}()
 	}
-	defer func() {
-		if err := r.Close(); err != nil {
-			log.Error().Err(err).Msg("Can not close repository")
-		}
-	}()
 
 	db, err := pgx.ConnectConfig(ctx, c.DatabaseDSN)
 	if err != nil {
