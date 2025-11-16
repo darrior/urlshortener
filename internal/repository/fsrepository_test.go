@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var _ Repository = (*FSRepository)(nil)
+
 func TestFSRepository_AddURL(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case

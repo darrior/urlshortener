@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Checks for interface implementations.
+var _ http.ResponseWriter = new(loggingResponseWriter)
+
+var _ http.ResponseWriter = new(gzipResponseWriter)
+
 type mwant struct {
 	status int
 	data   []byte

@@ -16,8 +16,6 @@ type FSRepository struct {
 	file *os.File
 }
 
-var _ Repository = (*FSRepository)(nil)
-
 func NewFSRepository(file *os.File) (*FSRepository, error) {
 	var urls urlStorage
 	if err := storage.ReadFile(file, &urls); err != nil {

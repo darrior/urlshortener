@@ -28,8 +28,6 @@ type Service struct {
 	db          *sql.DB
 }
 
-var _ IService = (*Service)(nil)
-
 func NewService(data repository.Repository, baseAddress string, db *sql.DB) *Service {
 	return &Service{
 		data:        data,

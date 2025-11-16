@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var _ IService = (*Service)(nil)
+
 type testRepository struct {
 	urls map[string]string
 }
