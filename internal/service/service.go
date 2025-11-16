@@ -3,12 +3,12 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
 
 	"github.com/darrior/urlshortener/internal/repository"
-	"github.com/jackc/pgx/v5"
 )
 
 var (
@@ -25,15 +25,16 @@ type IService interface {
 type Service struct {
 	data        repository.Repository
 	baseAddress string
-	db          *pgx.Conn
+	db          *sql.DB
 }
 
 var _ IService = (*Service)(nil)
 
-func NewService(data repository.Repository, baseAddress string) *Service {
+func NewService(data repository.Repository, baseAddress string, db *sql.DB) *Service {
 	return &Service{
 		data:        data,
 		baseAddress: baseAddress,
+		db:          db,
 	}
 }
 
@@ -65,5 +66,5 @@ func (s *Service) GetURL(id string) (string, error) {
 }
 
 func (s *Service) Ping(ctx context.Context) error {
-	return s.db.Ping(ctx)
+	return s.db.PingContext(ctx)
 }

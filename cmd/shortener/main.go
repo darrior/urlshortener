@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,7 +11,7 @@ import (
 	"github.com/darrior/urlshortener/internal/handler"
 	"github.com/darrior/urlshortener/internal/repository"
 	"github.com/darrior/urlshortener/internal/service"
-	"github.com/jackc/pgx/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog/log"
 )
 
@@ -45,18 +46,18 @@ func main() {
 		}
 	}()
 
-	db, err := pgx.ConnectConfig(ctx, c.DatabaseDSN)
+	db, err := sql.Open("pgx", c.DatabaseDSN.ConnString())
 	if err != nil {
 		log.Error().Err(err).Msg("Can not connect to database")
-	} else {
-		defer func() {
-			if err := db.Close(ctx); err != nil {
-				log.Error().Err(err).Msg("Can not close connection to database properly")
-			}
-		}()
+		os.Exit(-1)
 	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Error().Err(err).Msg("Can not close connection to database properly")
+		}
+	}()
 
-	s := service.NewService(r, c.BaseAddress.String())
+	s := service.NewService(r, c.BaseAddress.String(), db)
 
 	srv := handler.NewServer(string(c.ListenAddress), s)
 	go func() {

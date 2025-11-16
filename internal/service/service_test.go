@@ -51,7 +51,7 @@ func TestService_AddURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(tt.data, "http://127.0.0.1:8080")
+			s := NewService(tt.data, "http://127.0.0.1:8080", nil)
 			got, gotErr := s.AddURL(tt.url)
 
 			if tt.wantErr {
@@ -113,7 +113,7 @@ func TestService_GetURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(tt.data, "http://127.0.0.1:8080")
+			s := NewService(tt.data, "http://127.0.0.1:8080", nil)
 			got, gotErr := s.GetURL(tt.id)
 
 			if tt.wantErr {
