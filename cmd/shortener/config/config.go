@@ -42,7 +42,7 @@ type Config struct {
 	ListenAddress host            `env:"LISTEN_ADDRESS"`
 	BaseAddress   url.URL         `env:"BASE_ADDRESS"`
 	StorageFile   string          `env:"FILE_STORAGE_PATH"`
-	DatabaseDSN   *pgx.ConnConfig `env:"DATADBASE_DSN"`
+	DatabaseDSN   *pgx.ConnConfig `env:"DATABASE_DSN"`
 }
 
 func DefaultConfig() Config {
