@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"os"
 	"sync"
 
@@ -19,7 +18,7 @@ type FSRepository struct {
 
 var _ Repository = (*FSRepository)(nil)
 
-func NewFSRepository(ctx context.Context, file *os.File) (*FSRepository, error) {
+func NewFSRepository(file *os.File) (*FSRepository, error) {
 	var urls urlStorage
 	if err := storage.ReadFile(file, &urls); err != nil {
 		log.Warn().Err(err).Msg("Can not read urls from storage file")
@@ -32,12 +31,6 @@ func NewFSRepository(ctx context.Context, file *os.File) (*FSRepository, error) 
 		file: file,
 	}
 
-	go func() {
-		<-ctx.Done()
-		if err := r.close(); err != nil {
-			log.Error().Err(err).Msg("Can not close file")
-		}
-	}()
 	return r, nil
 }
 
@@ -62,6 +55,6 @@ func (f *FSRepository) GetURL(id string) (string, error) {
 	return url, nil
 }
 
-func (f *FSRepository) close() error {
+func (f *FSRepository) Close() error {
 	return f.file.Close()
 }

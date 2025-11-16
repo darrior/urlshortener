@@ -34,11 +34,17 @@ func main() {
 		log.Fatal().Err(err).Msg("Can not open storage file")
 	}
 
-	r, err := repository.NewFSRepository(ctx, f)
+	r, err := repository.NewFSRepository(f)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
 		os.Exit(-1)
 	}
+
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Error().Err(err).Msg("Can not close repository")
+		}
+	}()
 
 	s := service.NewService(r, c.BaseAddress.String())
 

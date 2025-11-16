@@ -27,6 +27,10 @@ func (t *testRepository) GetURL(id string) (string, error) {
 	return url, nil
 }
 
+func (t *testRepository) Close() error {
+	return nil
+}
+
 func TestService_AddURL(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case

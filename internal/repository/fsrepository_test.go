@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -90,7 +89,7 @@ func TestFSRepository_AddURL(t *testing.T) {
 				assert.NoError(t, err)
 			}()
 
-			f, err := NewFSRepository(context.Background(), tt.file)
+			f, err := NewFSRepository(tt.file)
 			assert.NoError(t, err)
 
 			if len(tt.urls) > 0 {
@@ -169,7 +168,7 @@ func TestFSRepository_GetURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f, err := NewFSRepository(context.Background(), tt.file)
+			f, err := NewFSRepository(tt.file)
 			assert.NoError(t, err)
 
 			if len(tt.urls) > 0 {
