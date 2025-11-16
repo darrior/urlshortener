@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -126,6 +127,77 @@ func TestConfig_validateBaseAddress(t *testing.T) {
 	}
 }
 
+func TestConfig_validateSorageFile(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		file    string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "Valid path",
+			file:    "file.json",
+			want:    "file.json",
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := Config{
+				StorageFile: _defaultStoragFilePath,
+			}
+			gotErr := c.validateSorageFile(tt.file)
+
+			if tt.wantErr {
+				assert.Error(t, gotErr)
+				return
+			}
+
+			assert.NoError(t, gotErr)
+			assert.Equal(t, tt.want, c.StorageFile)
+		})
+	}
+}
+
+func TestConfig_validateDatabaseDSN(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		dsn     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "Valid DSN",
+			dsn:     "postgresql://user:pass@example.com/test",
+			want:    "postgresql://user:pass@example.com/test",
+			wantErr: false,
+		},
+		{
+			name:    "Invalid DSN",
+			dsn:     "postgresql://user:pass@example.com/test?sslmode=off",
+			want:    "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := DefaultConfig()
+			gotErr := c.validateDatabaseDSN(tt.dsn)
+
+			if tt.wantErr {
+				assert.Error(t, gotErr)
+				return
+			}
+
+			assert.NoError(t, gotErr)
+			assert.Equal(t, tt.want, c.DatabaseDSN.ConnString())
+		})
+	}
+}
+
 func TestParseConfig(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
@@ -147,6 +219,7 @@ func TestParseConfig(t *testing.T) {
 					Host:   "127.0.0.1:9090",
 				},
 				StorageFile: "test.json",
+				DatabaseDSN: _defaultDatabaseDSN,
 			},
 			wantErr: false,
 		},
@@ -161,6 +234,7 @@ func TestParseConfig(t *testing.T) {
 					Host:   "127.0.0.1:90",
 				},
 				StorageFile: "urls.json",
+				DatabaseDSN: _defaultDatabaseDSN,
 			},
 			wantErr: false,
 		},
@@ -175,6 +249,7 @@ func TestParseConfig(t *testing.T) {
 					Host:   "127.0.0.1:90",
 				},
 				StorageFile: "data.json",
+				DatabaseDSN: _defaultDatabaseDSN,
 			},
 			wantErr: true,
 		},
@@ -189,6 +264,7 @@ func TestParseConfig(t *testing.T) {
 					Host:   "127.0.0.1:90",
 				},
 				StorageFile: "urls.json",
+				DatabaseDSN: _defaultDatabaseDSN,
 			},
 			wantErr: true,
 		},
@@ -200,6 +276,7 @@ func TestParseConfig(t *testing.T) {
 				ListenAddress: _defaultListenAddress,
 				BaseAddress:   _defaultBaseAddress,
 				StorageFile:   _defaultStoragFilePath,
+				DatabaseDSN:   _defaultDatabaseDSN,
 			},
 			wantErr: false,
 		},
@@ -214,6 +291,7 @@ func TestParseConfig(t *testing.T) {
 					Host:   "127.0.0.1:90",
 				},
 				StorageFile: "data.json",
+				DatabaseDSN: _defaultDatabaseDSN,
 			},
 			wantErr: false,
 		},
@@ -228,6 +306,7 @@ func TestParseConfig(t *testing.T) {
 					Host:   "127.0.0.1:9090",
 				},
 				StorageFile: "data.json",
+				DatabaseDSN: _defaultDatabaseDSN,
 			},
 			wantErr: false,
 		},
@@ -306,6 +385,42 @@ func Test_parseHost(t *testing.T) {
 
 			assert.NoError(t, gotErr)
 			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func Test_parseDatabaseDSNEnv(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+		// Named input parameters for target function.
+		dsn     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "Valid DSN",
+			dsn:     "postgresql://user:pass@example.com/test",
+			want:    "postgresql://user:pass@example.com/test",
+			wantErr: false,
+		},
+		{
+			name:    "Invalid DSN",
+			dsn:     "postgresql://user:pass@example.com/test?sslmode=off",
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, gotErr := parseDatabaseDSNEnv(tt.dsn)
+
+			if tt.wantErr {
+				assert.Error(t, gotErr)
+				return
+			}
+
+			assert.NoError(t, gotErr)
+			assert.Equal(t, tt.want, got.(*pgx.ConnConfig).ConnString())
 		})
 	}
 }

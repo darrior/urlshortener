@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/jackc/pgx/v5"
 )
 
 type host string
@@ -26,16 +27,22 @@ var _defaultBaseAddress = url.URL{
 	Host:   "127.0.0.1:8080",
 }
 
+var _defaultDatabaseDSN = func() *pgx.ConnConfig {
+	conf, _ := pgx.ParseConfig("postgresql://postgres:postgres@localhost:5432/urls?sslmode=disable")
+	return conf
+}()
+
 var (
 	errorValidateListenAddress = errors.New("listen address must be in form host:port")
 	errorValidateBaseAddress   = errors.New("invalid base address")
+	errorValidateDatabaseDSN   = errors.New("invalid database DSN")
 )
 
 type Config struct {
-	ListenAddress host    `env:"LISTEN_ADDRESS"`
-	BaseAddress   url.URL `env:"BASE_ADDRESS"`
-	StorageFile   string  `env:"FILE_STORAGE_PATH"`
-	DatabaseDSN   string  `env:"DATADBASE_DSN"`
+	ListenAddress host            `env:"LISTEN_ADDRESS"`
+	BaseAddress   url.URL         `env:"BASE_ADDRESS"`
+	StorageFile   string          `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN   *pgx.ConnConfig `env:"DATADBASE_DSN"`
 }
 
 func DefaultConfig() Config {
@@ -43,6 +50,7 @@ func DefaultConfig() Config {
 		ListenAddress: _defaultListenAddress,
 		BaseAddress:   _defaultBaseAddress,
 		StorageFile:   _defaultStoragFilePath,
+		DatabaseDSN:   _defaultDatabaseDSN,
 	}
 }
 
@@ -53,13 +61,15 @@ func ParseConfig() (Config, error) {
 	set.Func("a", "listen address for web-server", c.validateListenAddress)
 	set.Func("b", "base address for short URL", c.validateBaseAddress)
 	set.Func("f", "path to storage file", c.validateSorageFile)
+	set.Func("d", "database DSN", c.validateDatabaseDSN)
 	if err := set.Parse(os.Args[1:]); err != nil {
 		return Config{}, err
 	}
 
 	options := env.Options{
 		FuncMap: map[reflect.Type]env.ParserFunc{
-			reflect.TypeFor[host](): parseHostEnv,
+			reflect.TypeFor[host]():            parseHostEnv,
+			reflect.TypeFor[*pgx.ConnConfig](): parseDatabaseDSNEnv,
 		},
 	}
 
@@ -109,8 +119,27 @@ func (c *Config) validateSorageFile(file string) error {
 	return nil
 }
 
+func (c *Config) validateDatabaseDSN(dsn string) error {
+	conf, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return fmt.Errorf("%s: %w", errorValidateDatabaseDSN, err)
+	}
+
+	c.DatabaseDSN = conf
+	return nil
+}
+
 func parseHostEnv(h string) (any, error) {
 	return parseHost(h)
+}
+
+func parseDatabaseDSNEnv(dsn string) (any, error) {
+	conf, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", errorValidateDatabaseDSN, err)
+	}
+
+	return conf, nil
 }
 
 func parseHost(h string) (host, error) {
