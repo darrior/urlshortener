@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/service"
 	"github.com/stretchr/testify/assert"
 )
@@ -21,6 +22,10 @@ var _ service.IService = (*testService)(nil)
 
 func (t *testService) AddURL(_ context.Context, id string) (string, error) {
 	return "http://127.0.0.1:8080/AAAAAAA", nil
+}
+
+func (t *testService) AddURLs(ctx context.Context, longURLs models.ShortenerBatchRequest) (shortURLs models.ShortenerBatchResponse, err error) {
+	panic("unimplemented")
 }
 
 func (t *testService) GetURL(_ context.Context, id string) (string, error) {

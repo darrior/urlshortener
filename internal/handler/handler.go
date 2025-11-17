@@ -12,6 +12,7 @@ import (
 
 	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/service"
+	"github.com/rs/zerolog/log"
 )
 
 type handler struct {
@@ -103,6 +104,47 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 	}
 
 	data, err := json.Marshal(resData)
+	if err != nil {
+		http.Error(res, "Can not marshal short URL", http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Set("content-type", "application/json")
+	res.Header().Set("content-length", strconv.Itoa(len(data)))
+	res.WriteHeader(http.StatusCreated)
+	_, _ = res.Write(data)
+}
+
+func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request) {
+	if !strings.HasPrefix(req.Header.Get("content-type"), "application/json") {
+		http.Error(res, `Content type must be "application/json"`, http.StatusBadRequest)
+		return
+	}
+
+	var reqData models.ShortenerBatchRequest
+
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&reqData); err != nil {
+		http.Error(res, "Can not unmarshal JSON", http.StatusBadRequest)
+		return
+	}
+
+	for _, entry := range reqData {
+		if _, err := url.ParseRequestURI(entry.OriginalURL); err != nil {
+			log.Error().Err(err).Msg("Can not parse URL")
+			http.Error(res, "Invalid URL", http.StatusBadRequest)
+			return
+		}
+	}
+
+	shortURLs, err := h.service.AddURLs(req.Context(), reqData)
+	if err != nil {
+		log.Error().Err(err).Msg("Can not create short URL")
+		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
+		return
+	}
+
+	data, err := json.Marshal(shortURLs)
 	if err != nil {
 		http.Error(res, "Can not marshal short URL", http.StatusInternalServerError)
 		return
