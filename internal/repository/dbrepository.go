@@ -6,11 +6,28 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository/migrations"
 	"github.com/rs/zerolog/log"
 )
+
+type ErrorURLExists struct {
+	ID  string
+	URL string
+}
+
+func newErrorIDExists(id, url string) error {
+	return &ErrorURLExists{
+		ID:  id,
+		URL: url,
+	}
+}
+
+func (e *ErrorURLExists) Error() string {
+	return fmt.Sprintf("url %s exists with id %s", e.URL, e.ID)
+}
 
 type DBRepository struct {
 	db *sql.DB
@@ -27,11 +44,17 @@ func NewDBRepository(db *sql.DB) (*DBRepository, error) {
 }
 
 func (d *DBRepository) AddURL(ctx context.Context, id, url string) error {
-	_, err := d.db.ExecContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2)", id, url)
-	if err != nil {
+	row := d.db.QueryRowContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = $2 RETURNING id", id, url)
+	var inserted string
+	if err := row.Scan(&inserted); err != nil {
+		log.Error().Err(err).Msg("Can not scan row")
 		return err
 	}
 
+	log.Info().Str("inserted", inserted).Msg("DB returns value")
+	if inserted != id {
+		return newErrorIDExists(inserted, url)
+	}
 	return nil
 }
 
@@ -41,7 +64,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) 
 		return err
 	}
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2)")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id")
 	if err != nil {
 		return err
 	}
@@ -54,11 +77,18 @@ func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) 
 
 	var errs []error
 	for _, url := range batchURLs {
-		_, err := stmt.ExecContext(ctx, url.ID, url.URL)
-		if err != nil {
-			errs = append(errs, err)
+		row := stmt.QueryRowContext(ctx, url.ID, url.URL)
+
+		var inserted string
+		if err := row.Scan(&inserted); err != nil {
+			return err
+		}
+
+		if url.ID != inserted {
+			errs = append(errs, newErrorIDExists(url.ID, url.URL))
 		}
 	}
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
