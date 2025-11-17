@@ -11,7 +11,7 @@ var _letters = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz01234
 func generateURLID(number int) string {
 	var id []rune
 	alphabetLen := len(_letters)
-	for _ = range _len {
+	for range _len {
 		num := number % alphabetLen
 		id = append(id, _letters[num])
 		number /= alphabetLen
