@@ -64,7 +64,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) 
 		return err
 	}
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING id")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = $2 RETURNING id")
 	if err != nil {
 		return err
 	}
