@@ -10,11 +10,13 @@ import (
 
 	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository"
+	"github.com/rs/zerolog/log"
 )
 
 var (
 	ErrorUnknownURL   = errors.New("unkonwn URL")
 	ErrorCannotAddURL = errors.New("cannot add URL")
+	ErrorURLExists    = errors.New("passed existing URL")
 )
 
 type IService interface {
@@ -48,7 +50,20 @@ func (s *Service) AddURL(ctx context.Context, longURL string) (string, error) {
 	id := generateURLID(count)
 
 	if err := s.data.AddURL(ctx, id, longURL); err != nil {
-		return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
+		var ue *repository.ErrorURLExists
+		if !errors.As(err, &ue) {
+			log.Error().Err(err).Msg("error")
+			return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
+		}
+
+		log.Info().Str("id", id).Msg("Repository returns existed ID")
+
+		shortURL, err := url.JoinPath(s.baseAddress, ue.ID)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
+		}
+
+		return shortURL, ErrorURLExists
 	}
 
 	shortURL, err := url.JoinPath(s.baseAddress, id)
