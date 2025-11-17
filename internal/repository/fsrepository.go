@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository/storage"
 	"github.com/rs/zerolog/log"
 )
@@ -43,6 +44,28 @@ func (f *FSRepository) AddURL(_ context.Context, id, url string) error {
 	}
 
 	return nil
+}
+
+func (f *FSRepository) AddURLs(_ context.Context, batchURLs models.BatchURLs) error {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	for _, url := range batchURLs {
+		f.urls[url.ID] = url.URL
+	}
+
+	if err := storage.UpdateFile(f.file, f.urls); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (f *FSRepository) Count(_ context.Context) (int, error) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	return len(f.urls), nil
 }
 
 func (f *FSRepository) GetURL(_ context.Context, id string) (string, error) {
