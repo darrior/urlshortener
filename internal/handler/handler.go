@@ -3,6 +3,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -62,15 +63,19 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	status := http.StatusCreated
+
 	shortURL, err := h.service.AddURL(req.Context(), longURL)
-	if err != nil {
+	if errors.Is(err, service.ErrorURLExists) {
+		status = http.StatusConflict
+	} else if err != nil {
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
 		return
 	}
 
 	res.Header().Set("content-type", "text/plain")
 	res.Header().Set("content-length", strconv.Itoa(len(shortURL)))
-	res.WriteHeader(http.StatusCreated)
+	res.WriteHeader(status)
 	_, _ = fmt.Fprint(res, shortURL)
 }
 
@@ -93,8 +98,12 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	status := http.StatusCreated
+
 	shortURL, err := h.service.AddURL(req.Context(), reqData.URL)
-	if err != nil {
+	if errors.Is(err, service.ErrorURLExists) {
+		status = http.StatusConflict
+	} else if err != nil {
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
 		return
 	}
@@ -111,7 +120,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 
 	res.Header().Set("content-type", "application/json")
 	res.Header().Set("content-length", strconv.Itoa(len(data)))
-	res.WriteHeader(http.StatusCreated)
+	res.WriteHeader(status)
 	_, _ = res.Write(data)
 }
 
