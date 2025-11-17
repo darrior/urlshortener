@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository"
 	"github.com/stretchr/testify/assert"
 )
@@ -28,6 +29,18 @@ func (t *testRepository) GetURL(_ context.Context, id string) (string, error) {
 		return "", repository.ErrorNotFound
 	}
 	return url, nil
+}
+
+func (t *testRepository) AddURLs(_ context.Context, batchURLs models.BatchURLs) error {
+	for _, url := range batchURLs {
+		t.urls[url.ID] = url.URL
+	}
+
+	return nil
+}
+
+func (t *testRepository) Count(_ context.Context) (int, error) {
+	return len(t.urls), nil
 }
 
 func (t *testRepository) Ping(_ context.Context) error {

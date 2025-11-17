@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"sync"
 
+	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository"
 )
 
@@ -17,11 +19,13 @@ var (
 
 type IService interface {
 	AddURL(ctx context.Context, longURL string) (shortURL string, err error)
+	AddURLs(ctx context.Context, longURLs models.ShortenerBatchRequest) (shortURLs models.ShortenerBatchResponse, err error)
 	GetURL(ctx context.Context, id string) (longURL string, err error)
 	Ping(ctx context.Context) (err error)
 }
 
 type Service struct {
+	lock        sync.RWMutex
 	data        repository.Repository
 	baseAddress string
 }
@@ -34,10 +38,14 @@ func NewService(data repository.Repository, baseAddress string) *Service {
 }
 
 func (s *Service) AddURL(ctx context.Context, longURL string) (string, error) {
-	id := generateURLID()
-	for _, err := s.data.GetURL(ctx, id); err == nil; {
-		id = generateURLID()
+	s.lock.Lock()
+	defer s.lock.Unlock()
+	count, err := s.data.Count(ctx)
+	if err != nil {
+		return "", err
 	}
+
+	id := generateURLID(count)
 
 	if err := s.data.AddURL(ctx, id, longURL); err != nil {
 		return "", fmt.Errorf("%s: %w", ErrorCannotAddURL.Error(), err)
@@ -51,7 +59,46 @@ func (s *Service) AddURL(ctx context.Context, longURL string) (string, error) {
 	return shortURL, nil
 }
 
+func (s *Service) AddURLs(ctx context.Context, longURLs models.ShortenerBatchRequest) (models.ShortenerBatchResponse, error) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	count, err := s.data.Count(ctx)
+	if err != nil {
+		return models.ShortenerBatchResponse{}, err
+	}
+
+	var res models.ShortenerBatchResponse
+	var urls models.BatchURLs
+	for _, entry := range longURLs {
+		id := generateURLID(count)
+		shortURL, err := url.JoinPath(s.baseAddress, id)
+		if err != nil {
+			return models.ShortenerBatchResponse{}, err
+		}
+
+		res = append(res, models.BatchResponseEntry{
+			CorrelationID: entry.CorrelationID,
+			ShortURL:      shortURL,
+		})
+		urls = append(urls, models.BatchURLEntry{
+			ID:  id,
+			URL: entry.OriginalURL,
+		})
+
+		count += 1
+	}
+
+	if err := s.data.AddURLs(ctx, urls); err != nil {
+		return models.ShortenerBatchResponse{}, err
+	}
+
+	return res, nil
+}
+
 func (s *Service) GetURL(ctx context.Context, id string) (string, error) {
+	s.lock.RLock()
+	defer s.lock.RUnlock()
 	longURL, err := s.data.GetURL(ctx, id)
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", ErrorUnknownURL.Error(), err)
