@@ -46,7 +46,7 @@ func (d *DBRepository) AddURL(ctx context.Context, id, url string) error {
 	var inserted string
 	if err := row.Scan(&inserted); err != nil {
 		log.Error().Err(err).Msg("Can not scan row")
-		return err
+		return fmt.Errorf("can not parse row: %w", err)
 	}
 
 	log.Info().Str("inserted", inserted).Msg("DB returns value")
@@ -59,12 +59,12 @@ func (d *DBRepository) AddURL(ctx context.Context, id, url string) error {
 func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("can not begin transaction: %w", err)
 	}
 
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = $2 RETURNING id")
 	if err != nil {
-		return err
+		return fmt.Errorf("can not prepare query: %w", err)
 	}
 	defer func() {
 		err := stmt.Close()
@@ -79,7 +79,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) 
 
 		var inserted string
 		if err := row.Scan(&inserted); err != nil {
-			return err
+			return fmt.Errorf("can not parse row: %w", err)
 		}
 
 		if url.ID != inserted {
@@ -92,7 +92,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) 
 	}
 
 	if err := tx.Commit(); err != nil {
-		return err
+		return fmt.Errorf("can not commit transaction: %w", err)
 	}
 
 	return nil
@@ -103,7 +103,7 @@ func (d *DBRepository) Count(ctx context.Context) (int, error) {
 	var count int
 
 	if err := row.Scan(&count); err != nil {
-		return 0, err
+		return 0, fmt.Errorf("can not parse row: %w", err)
 	}
 
 	return count, nil
@@ -114,7 +114,7 @@ func (d *DBRepository) GetURL(ctx context.Context, id string) (string, error) {
 
 	var url string
 	if err := row.Scan(&url); err != nil {
-		return "", err
+		return "", fmt.Errorf("can not parse row: %w", err)
 	}
 
 	return url, nil
@@ -122,12 +122,16 @@ func (d *DBRepository) GetURL(ctx context.Context, id string) (string, error) {
 
 func (d *DBRepository) Ping(ctx context.Context) error {
 	if err := d.db.PingContext(ctx); err != nil {
-		return err
+		return fmt.Errorf("can not ping DB: %w", err)
 	}
 
 	return nil
 }
 
 func (d *DBRepository) Close() (err error) {
-	return d.db.Close()
+	if err := d.db.Close(); err != nil {
+		return fmt.Errorf("can not close db: %w", err)
+	}
+
+	return nil
 }
