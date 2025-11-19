@@ -130,10 +130,10 @@ func parseHostEnv(h string) (any, error) {
 }
 
 func parseDatabaseDSN(dsn string) (*pgx.ConnConfig, error) {
-	errorValidateDatabaseDSN := errors.New("invalid database DSN")
 
 	conf, err := pgx.ParseConfig(dsn)
 	if err != nil {
+		errorValidateDatabaseDSN := errors.New("invalid database DSN")
 		return nil, fmt.Errorf("%w: %w", errorValidateDatabaseDSN, err)
 	}
 
