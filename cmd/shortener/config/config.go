@@ -29,12 +29,6 @@ var _defaultBaseAddress = url.URL{
 
 var _defaultDatabaseDSN *pgx.ConnConfig = nil
 
-var (
-	errorValidateListenAddress = errors.New("listen address must be in form host:port")
-	errorValidateBaseAddress   = errors.New("invalid base address")
-	errorValidateDatabaseDSN   = errors.New("invalid database DSN")
-)
-
 type Config struct {
 	ListenAddress host            `env:"LISTEN_ADDRESS"`
 	BaseAddress   url.URL         `env:"BASE_ADDRESS"`
@@ -100,7 +94,8 @@ func (c *Config) validateBaseAddress(address string) error {
 
 	parsedURL, err := url.Parse(address)
 	if err != nil {
-		return fmt.Errorf("%s: %w", errorValidateBaseAddress.Error(), err)
+		errorValidateBaseAddress := errors.New("invalid base address")
+		return fmt.Errorf("%w: %w", errorValidateBaseAddress, err)
 	}
 
 	parsedURL.Path = ""
@@ -117,36 +112,44 @@ func (c *Config) validateSorageFile(file string) error {
 }
 
 func (c *Config) validateDatabaseDSN(dsn string) error {
-	conf, err := pgx.ParseConfig(dsn)
+	conf, err := parseDatabaseDSN(dsn)
 	if err != nil {
-		return fmt.Errorf("%s: %w", errorValidateDatabaseDSN, err)
+		return err
 	}
 
 	c.DatabaseDSN = conf
 	return nil
 }
 
+func parseDatabaseDSNEnv(dsn string) (any, error) {
+	return parseDatabaseDSN(dsn)
+}
+
 func parseHostEnv(h string) (any, error) {
 	return parseHost(h)
 }
 
-func parseDatabaseDSNEnv(dsn string) (any, error) {
+func parseDatabaseDSN(dsn string) (*pgx.ConnConfig, error) {
+	errorValidateDatabaseDSN := errors.New("invalid database DSN")
+
 	conf, err := pgx.ParseConfig(dsn)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", errorValidateDatabaseDSN, err)
+		return nil, fmt.Errorf("%w: %w", errorValidateDatabaseDSN, err)
 	}
 
 	return conf, nil
 }
 
 func parseHost(h string) (host, error) {
+	errorValidateListenAddress := errors.New("listen address must be in form host:port")
+
 	splitedHost := strings.Split(h, ":")
 	if len(splitedHost) != 2 {
 		return "", errorValidateListenAddress
 	}
 
 	if number, err := strconv.Atoi(splitedHost[1]); err != nil || number > 65535 {
-		return "", fmt.Errorf("%s: %w", errorValidateListenAddress.Error(), err)
+		return "", fmt.Errorf("%w: %w", errorValidateListenAddress, err)
 	}
 
 	return host(h), nil
