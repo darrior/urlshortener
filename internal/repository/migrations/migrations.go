@@ -1,8 +1,6 @@
 // Package migrations provide functions to migrate DB.
 package migrations
 
-// TODO: write tests with gomock or go-sqlmock.
-
 import (
 	"context"
 	"database/sql"

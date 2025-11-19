@@ -1,7 +1,5 @@
 package repository
 
-// TODO: write tests for DBRepository with gomock or go-sqlmock.
-
 import (
 	"context"
 	"database/sql"
