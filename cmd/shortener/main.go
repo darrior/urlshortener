@@ -34,7 +34,7 @@ func main() {
 	r, err := initRepository(c)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
-		os.Exit(-1)
+		os.Exit(1)
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
