@@ -38,6 +38,7 @@ func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
 
 func (h *handler) getPing(res http.ResponseWriter, req *http.Request) {
 	if err := h.service.Ping(req.Context()); err != nil {
+		log.Error().Err(err).Msg("Error while ping DB")
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -69,6 +70,7 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 	if errors.Is(err, service.ErrorURLExists) {
 		status = http.StatusConflict
 	} else if err != nil {
+		log.Error().Err(err).Msg("Can not create short URL")
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
 		return
 	}
@@ -104,6 +106,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 	if errors.Is(err, service.ErrorURLExists) {
 		status = http.StatusConflict
 	} else if err != nil {
+		log.Error().Err(err).Msg("Can not create short URL")
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
 		return
 	}
@@ -114,6 +117,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 
 	data, err := json.Marshal(resData)
 	if err != nil {
+		log.Error().Err(err).Msg("Can not marshal short URL")
 		http.Error(res, "Can not marshal short URL", http.StatusInternalServerError)
 		return
 	}
@@ -140,7 +144,6 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 
 	for _, entry := range reqData {
 		if _, err := url.ParseRequestURI(entry.OriginalURL); err != nil {
-			log.Error().Err(err).Msg("Can not parse URL")
 			http.Error(res, "Invalid URL", http.StatusBadRequest)
 			return
 		}
@@ -155,6 +158,7 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 
 	data, err := json.Marshal(shortURLs)
 	if err != nil {
+		log.Error().Err(err).Msg("Can not marshal short URL")
 		http.Error(res, "Can not marshal short URL", http.StatusInternalServerError)
 		return
 	}
