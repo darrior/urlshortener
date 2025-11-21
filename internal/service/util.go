@@ -1,14 +1,22 @@
 package service
 
-import "math/rand"
+import (
+	"slices"
+)
 
-var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+const _len = 7
 
-func generateURLID() string {
-	shortURL := make([]rune, 7)
-	for i := range shortURL {
-		shortURL[i] = letters[rand.Intn(len(letters))]
+var _letters = []rune("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+
+func generateURLID(number int) string {
+	var id []rune
+	alphabetLen := len(_letters)
+	for range _len {
+		num := number % alphabetLen
+		id = append(id, _letters[num])
+		number /= alphabetLen
 	}
+	slices.Reverse(id)
 
-	return string(shortURL)
+	return string(id)
 }

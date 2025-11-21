@@ -3,8 +3,8 @@ build:
     go build -o build/urlshortener cmd/shortener/main.go
 
 # Run urlshortener.
-run:
-    go run cmd/shortener/main.go
+run *args:
+    go run cmd/shortener/main.go {{args}}
     
 # Run unit-tests only
 test path="./...":

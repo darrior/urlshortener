@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/darrior/urlshortener/internal/service"
@@ -35,7 +36,7 @@ func NewServer(address string, service *service.Service) *Server {
 
 func (s *Server) Run() error {
 	if err := s.srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		return err
+		return fmt.Errorf("server unexpected exited: %w", err)
 	}
 
 	return nil
@@ -44,7 +45,7 @@ func (s *Server) Run() error {
 func (s *Server) Stop(ctx context.Context) error {
 	<-ctx.Done()
 	if err := s.srv.Close(); err != nil {
-		return err
+		return fmt.Errorf("can not close server: %w", err)
 	}
 	return nil
 }

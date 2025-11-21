@@ -22,8 +22,6 @@ type loggingResponseWriter struct {
 	responseData *responseData
 }
 
-var _ http.ResponseWriter = new(loggingResponseWriter)
-
 func (l *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := l.ResponseWriter.Write(b)
 	l.responseData.size = size
@@ -40,8 +38,6 @@ type gzipResponseWriter struct {
 	status int
 	writer io.Writer
 }
-
-var _ http.ResponseWriter = new(gzipResponseWriter)
 
 func (g *gzipResponseWriter) Write(data []byte) (int, error) {
 	return g.writer.Write(data)

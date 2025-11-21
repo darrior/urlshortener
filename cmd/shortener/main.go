@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -10,6 +12,7 @@ import (
 	"github.com/darrior/urlshortener/internal/handler"
 	"github.com/darrior/urlshortener/internal/repository"
 	"github.com/darrior/urlshortener/internal/service"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog/log"
 )
 
@@ -28,16 +31,16 @@ func main() {
 		cancel()
 	}()
 
-	f, err := os.OpenFile(c.StorageFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
-	if err != nil {
-		log.Fatal().Err(err).Msg("Can not open storage file")
-	}
-
-	r, err := repository.NewFSRepository(ctx, f)
+	r, err := initRepository(c)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Can not initialize repository")
-		os.Exit(-1)
+		os.Exit(1)
 	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Error().Err(err).Msg("Can not close repository")
+		}
+	}()
 
 	s := service.NewService(r, c.BaseAddress.String())
 
@@ -54,4 +57,35 @@ func main() {
 		log.Error().Err(err).Msg("Unexpected server error")
 		os.Exit(1)
 	}
+}
+
+func initRepository(cfg config.Config) (repository.Repository, error) {
+	if cfg.DatabaseDSN != nil {
+		db, err := sql.Open("pgx", cfg.DatabaseDSN.ConnString())
+		if err != nil {
+			return nil, fmt.Errorf("can not open db connection: %w", err)
+		}
+		r, err := repository.NewDBRepository(db)
+		if err != nil {
+			return nil, fmt.Errorf("can not create DBRepository: %w", err)
+		}
+
+		return r, nil
+	}
+
+	if cfg.StorageFile != "" {
+		f, err := os.OpenFile(cfg.StorageFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0666)
+		if err != nil {
+			return nil, fmt.Errorf("can not open storage file: %w", err)
+		}
+
+		r, err := repository.NewFSRepository(f)
+		if err != nil {
+			return nil, fmt.Errorf("can not create FSRepository: %w", err)
+		}
+
+		return r, nil
+	}
+
+	return repository.NewMapRepository(), nil
 }

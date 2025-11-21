@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository/storage"
 	"github.com/rs/zerolog/log"
 )
@@ -17,9 +18,7 @@ type FSRepository struct {
 	file *os.File
 }
 
-var _ Repository = (*FSRepository)(nil)
-
-func NewFSRepository(ctx context.Context, file *os.File) (*FSRepository, error) {
+func NewFSRepository(file *os.File) (*FSRepository, error) {
 	var urls urlStorage
 	if err := storage.ReadFile(file, &urls); err != nil {
 		log.Warn().Err(err).Msg("Can not read urls from storage file")
@@ -32,16 +31,10 @@ func NewFSRepository(ctx context.Context, file *os.File) (*FSRepository, error) 
 		file: file,
 	}
 
-	go func() {
-		<-ctx.Done()
-		if err := r.close(); err != nil {
-			log.Error().Err(err).Msg("Can not close file")
-		}
-	}()
 	return r, nil
 }
 
-func (f *FSRepository) AddURL(id, url string) error {
+func (f *FSRepository) AddURL(_ context.Context, id, url string) error {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
@@ -53,7 +46,29 @@ func (f *FSRepository) AddURL(id, url string) error {
 	return nil
 }
 
-func (f *FSRepository) GetURL(id string) (string, error) {
+func (f *FSRepository) AddURLs(_ context.Context, batchURLs models.BatchURLs) error {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	for _, url := range batchURLs {
+		f.urls[url.ID] = url.URL
+	}
+
+	if err := storage.UpdateFile(f.file, f.urls); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (f *FSRepository) Count(_ context.Context) (int, error) {
+	f.lock.Lock()
+	defer f.lock.Unlock()
+
+	return len(f.urls), nil
+}
+
+func (f *FSRepository) GetURL(_ context.Context, id string) (string, error) {
 	url, ok := f.urls[id]
 	if !ok {
 		return "", ErrorNotFound
@@ -62,6 +77,10 @@ func (f *FSRepository) GetURL(id string) (string, error) {
 	return url, nil
 }
 
-func (f *FSRepository) close() error {
+func (f *FSRepository) Ping(_ context.Context) error {
+	return nil
+}
+
+func (f *FSRepository) Close() error {
 	return f.file.Close()
 }

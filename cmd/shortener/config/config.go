@@ -12,13 +12,14 @@ import (
 	"strings"
 
 	"github.com/caarlos0/env/v11"
+	"github.com/jackc/pgx/v5"
 )
 
 type host string
 
 const (
 	_defaultListenAddress  host   = "127.0.0.1:8080"
-	_defaultStoragFilePath string = "urls.json"
+	_defaultStoragFilePath string = ""
 )
 
 var _defaultBaseAddress = url.URL{
@@ -26,15 +27,13 @@ var _defaultBaseAddress = url.URL{
 	Host:   "127.0.0.1:8080",
 }
 
-var (
-	errorValidateListenAddress = errors.New("listen address must be in form host:port")
-	errorValidateBaseAddress   = errors.New("invalid base address")
-)
+var _defaultDatabaseDSN *pgx.ConnConfig = nil
 
 type Config struct {
-	ListenAddress host    `env:"LISTEN_ADDRESS"`
-	BaseAddress   url.URL `env:"BASE_ADDRESS"`
-	StorageFile   string  `env:"FILE_STORAGE_PATH"`
+	ListenAddress host            `env:"LISTEN_ADDRESS"`
+	BaseAddress   url.URL         `env:"BASE_ADDRESS"`
+	StorageFile   string          `env:"FILE_STORAGE_PATH"`
+	DatabaseDSN   *pgx.ConnConfig `env:"DATABASE_DSN"`
 }
 
 func DefaultConfig() Config {
@@ -42,6 +41,7 @@ func DefaultConfig() Config {
 		ListenAddress: _defaultListenAddress,
 		BaseAddress:   _defaultBaseAddress,
 		StorageFile:   _defaultStoragFilePath,
+		DatabaseDSN:   _defaultDatabaseDSN,
 	}
 }
 
@@ -52,13 +52,15 @@ func ParseConfig() (Config, error) {
 	set.Func("a", "listen address for web-server", c.validateListenAddress)
 	set.Func("b", "base address for short URL", c.validateBaseAddress)
 	set.Func("f", "path to storage file", c.validateSorageFile)
+	set.Func("d", "database DSN", c.validateDatabaseDSN)
 	if err := set.Parse(os.Args[1:]); err != nil {
 		return Config{}, err
 	}
 
 	options := env.Options{
 		FuncMap: map[reflect.Type]env.ParserFunc{
-			reflect.TypeFor[host](): parseHostEnv,
+			reflect.TypeFor[host]():            parseHostEnv,
+			reflect.TypeFor[*pgx.ConnConfig](): parseDatabaseDSNEnv,
 		},
 	}
 
@@ -92,7 +94,8 @@ func (c *Config) validateBaseAddress(address string) error {
 
 	parsedURL, err := url.Parse(address)
 	if err != nil {
-		return fmt.Errorf("%s: %w", errorValidateBaseAddress.Error(), err)
+		errorValidateBaseAddress := errors.New("invalid base address")
+		return fmt.Errorf("%w: %w", errorValidateBaseAddress, err)
 	}
 
 	parsedURL.Path = ""
@@ -108,18 +111,45 @@ func (c *Config) validateSorageFile(file string) error {
 	return nil
 }
 
+func (c *Config) validateDatabaseDSN(dsn string) error {
+	conf, err := parseDatabaseDSN(dsn)
+	if err != nil {
+		return err
+	}
+
+	c.DatabaseDSN = conf
+	return nil
+}
+
+func parseDatabaseDSNEnv(dsn string) (any, error) {
+	return parseDatabaseDSN(dsn)
+}
+
 func parseHostEnv(h string) (any, error) {
 	return parseHost(h)
 }
 
+func parseDatabaseDSN(dsn string) (*pgx.ConnConfig, error) {
+
+	conf, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		errorValidateDatabaseDSN := errors.New("invalid database DSN")
+		return nil, fmt.Errorf("%w: %w", errorValidateDatabaseDSN, err)
+	}
+
+	return conf, nil
+}
+
 func parseHost(h string) (host, error) {
+	errorValidateListenAddress := errors.New("listen address must be in form host:port")
+
 	splitedHost := strings.Split(h, ":")
 	if len(splitedHost) != 2 {
 		return "", errorValidateListenAddress
 	}
 
 	if number, err := strconv.Atoi(splitedHost[1]); err != nil || number > 65535 {
-		return "", fmt.Errorf("%s: %w", errorValidateListenAddress.Error(), err)
+		return "", fmt.Errorf("%w: %w", errorValidateListenAddress, err)
 	}
 
 	return host(h), nil
