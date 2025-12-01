@@ -41,8 +41,8 @@ func NewDBRepository(db *sql.DB) (*DBRepository, error) {
 	}, nil
 }
 
-func (d *DBRepository) AddURL(ctx context.Context, id, url string) error {
-	row := d.db.QueryRowContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = $2 RETURNING id", id, url)
+func (d *DBRepository) AddURL(ctx context.Context, userID, id, url string) error {
+	row := d.db.QueryRowContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET users = EXCLUDED.users || $3 RETURNING id", id, url, userID)
 	var inserted string
 	if err := row.Scan(&inserted); err != nil {
 		log.Error().Err(err).Msg("Can not scan row")
@@ -56,13 +56,13 @@ func (d *DBRepository) AddURL(ctx context.Context, id, url string) error {
 	return nil
 }
 
-func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) error {
+func (d *DBRepository) AddURLs(ctx context.Context, userID string, batchURLs models.BatchURLs) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("can not begin transaction: %w", err)
 	}
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = $2 RETURNING id")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET users = EXCLUDED.users || $3 RETURNING id")
 	if err != nil {
 		return fmt.Errorf("can not prepare query: %w", err)
 	}
@@ -75,7 +75,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) 
 
 	var errs []error
 	for _, url := range batchURLs {
-		row := stmt.QueryRowContext(ctx, url.ID, url.URL)
+		row := stmt.QueryRowContext(ctx, url.ID, url.URL, userID)
 
 		var inserted string
 		if err := row.Scan(&inserted); err != nil {
@@ -118,6 +118,37 @@ func (d *DBRepository) GetURL(ctx context.Context, id string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (models.BatchURLs, error) {
+	rows, err := d.db.QueryContext(ctx, "SELECT id, url FROM urls WHERE $1 = ANY(users)", userID)
+	if err != nil {
+		return models.BatchURLs{}, fmt.Errorf("can not get user's urls: %w", err)
+	}
+
+	var (
+		errs []error
+		urls models.BatchURLs
+	)
+
+	for rows.Next() {
+		var id, url string
+		if err := rows.Scan(id, url); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		urls = append(urls, models.BatchURLEntry{
+			ID:  id,
+			URL: url,
+		})
+
+	}
+	if len(errs) != 0 {
+		return models.BatchURLs{}, errors.Join(errs...)
+	}
+
+	return urls, nil
 }
 
 func (d *DBRepository) Ping(ctx context.Context) error {

@@ -20,8 +20,8 @@ var (
 )
 
 type IService interface {
-	AddURL(ctx context.Context, longURL string) (shortURL string, err error)
-	AddURLs(ctx context.Context, longURLs models.ShortenerBatchRequest) (shortURLs models.ShortenerBatchResponse, err error)
+	AddURL(ctx context.Context, userID, longURL string) (shortURL string, err error)
+	AddURLs(ctx context.Context, userID string, longURLs models.ShortenerBatchRequest) (shortURLs models.ShortenerBatchResponse, err error)
 	GetURL(ctx context.Context, id string) (longURL string, err error)
 	Ping(ctx context.Context) (err error)
 }
@@ -39,7 +39,7 @@ func NewService(data repository.Repository, baseAddress string) *Service {
 	}
 }
 
-func (s *Service) AddURL(ctx context.Context, longURL string) (string, error) {
+func (s *Service) AddURL(ctx context.Context, userID, longURL string) (string, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 	count, err := s.data.Count(ctx)
@@ -49,7 +49,7 @@ func (s *Service) AddURL(ctx context.Context, longURL string) (string, error) {
 
 	id := generateURLID(count)
 
-	if err := s.data.AddURL(ctx, id, longURL); err != nil {
+	if err := s.data.AddURL(ctx, userID, id, longURL); err != nil {
 		var ue *repository.ErrorURLExists
 		if !errors.As(err, &ue) {
 			log.Error().Err(err).Msg("error")
@@ -74,7 +74,7 @@ func (s *Service) AddURL(ctx context.Context, longURL string) (string, error) {
 	return shortURL, nil
 }
 
-func (s *Service) AddURLs(ctx context.Context, longURLs models.ShortenerBatchRequest) (models.ShortenerBatchResponse, error) {
+func (s *Service) AddURLs(ctx context.Context, userID string, longURLs models.ShortenerBatchRequest) (models.ShortenerBatchResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
@@ -104,7 +104,7 @@ func (s *Service) AddURLs(ctx context.Context, longURLs models.ShortenerBatchReq
 		count += 1
 	}
 
-	if err := s.data.AddURLs(ctx, urls); err != nil {
+	if err := s.data.AddURLs(ctx, userID, urls); err != nil {
 		return models.ShortenerBatchResponse{}, err
 	}
 

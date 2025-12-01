@@ -10,11 +10,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type urlStorage map[string]string
-
 type FSRepository struct {
-	lock sync.Mutex
-	urls urlStorage
+	MapRepository
 	file *os.File
 }
 
@@ -26,32 +23,19 @@ func NewFSRepository(file *os.File) (*FSRepository, error) {
 	}
 
 	r := &FSRepository{
-		lock: sync.Mutex{},
-		urls: urls,
+		MapRepository: MapRepository{
+			lock: sync.Mutex{},
+			urls: urls,
+		},
 		file: file,
 	}
 
 	return r, nil
 }
 
-func (f *FSRepository) AddURL(_ context.Context, id, url string) error {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	f.urls[id] = url
-	if err := storage.UpdateFile(f.file, f.urls); err != nil {
+func (f *FSRepository) AddURL(_ context.Context, userID, id, url string) error {
+	if err := f.MapRepository.AddURL(context.Background(), userID, id, url); err != nil {
 		return err
-	}
-
-	return nil
-}
-
-func (f *FSRepository) AddURLs(_ context.Context, batchURLs models.BatchURLs) error {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	for _, url := range batchURLs {
-		f.urls[url.ID] = url.URL
 	}
 
 	if err := storage.UpdateFile(f.file, f.urls); err != nil {
@@ -61,23 +45,15 @@ func (f *FSRepository) AddURLs(_ context.Context, batchURLs models.BatchURLs) er
 	return nil
 }
 
-func (f *FSRepository) Count(_ context.Context) (int, error) {
-	f.lock.Lock()
-	defer f.lock.Unlock()
-
-	return len(f.urls), nil
-}
-
-func (f *FSRepository) GetURL(_ context.Context, id string) (string, error) {
-	url, ok := f.urls[id]
-	if !ok {
-		return "", ErrorNotFound
+func (f *FSRepository) AddURLs(_ context.Context, userID string, batchURLs models.BatchURLs) error {
+	if err := f.MapRepository.AddURLs(context.TODO(), userID, batchURLs); err != nil {
+		return err
 	}
 
-	return url, nil
-}
+	if err := storage.UpdateFile(f.file, f.urls); err != nil {
+		return err
+	}
 
-func (f *FSRepository) Ping(_ context.Context) error {
 	return nil
 }
 

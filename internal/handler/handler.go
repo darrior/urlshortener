@@ -27,6 +27,7 @@ func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
 
 func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
 	shortURL := req.PathValue("url_id")
+
 	fullURL, err := h.service.GetURL(req.Context(), shortURL)
 	if err != nil {
 		http.Error(res, "Short URL not found", http.StatusBadRequest)
@@ -66,7 +67,12 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 
 	status := http.StatusCreated
 
-	shortURL, err := h.service.AddURL(req.Context(), longURL)
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	shortURL, err := h.service.AddURL(req.Context(), userID, longURL)
 	if errors.Is(err, service.ErrorURLExists) {
 		status = http.StatusConflict
 	} else if err != nil {
@@ -102,7 +108,12 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 
 	status := http.StatusCreated
 
-	shortURL, err := h.service.AddURL(req.Context(), reqData.URL)
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	shortURL, err := h.service.AddURL(req.Context(), userID, reqData.URL)
 	if errors.Is(err, service.ErrorURLExists) {
 		status = http.StatusConflict
 	} else if err != nil {
@@ -149,7 +160,12 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 		}
 	}
 
-	shortURLs, err := h.service.AddURLs(req.Context(), reqData)
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	shortURLs, err := h.service.AddURLs(req.Context(), userID, reqData)
 	if err != nil {
 		log.Error().Err(err).Msg("Can not create short URL")
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)

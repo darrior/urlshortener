@@ -12,6 +12,12 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const authCookieName = "auth_cookie"
+
+type contextUserID string
+
+const _contextUserID contextUserID = "user_id"
+
 type responseData struct {
 	status int
 	size   int
@@ -101,6 +107,14 @@ func extractMiddlware(h http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(extractHandler)
+}
+
+func authCookieMiddlware(h http.Handler) http.Handler {
+	authCookieHandler := func(res http.ResponseWriter, req *http.Request) {
+
+	}
+
+	return http.HandlerFunc(authCookieHandler)
 }
 
 func compressMiddlware(h http.Handler) http.Handler {
