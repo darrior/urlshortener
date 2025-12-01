@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 ALTER TABLE urls
-ADD COLUMN user_id;
+ADD user_id integer[];
 -- +goose StatementEnd
 
 -- +goose Down
