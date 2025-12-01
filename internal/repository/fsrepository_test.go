@@ -21,12 +21,13 @@ func TestFSRepository_AddURL(t *testing.T) {
 		urls    urlStorage
 		id      string
 		url     string
+		userID  string
 		wantErr bool
 		want    urlStorage
 	}{
 		{
 			name: "Add URL to empty map",
-			urls: map[string]string{},
+			urls: map[string]record{},
 			file: func() *os.File {
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
@@ -35,8 +36,10 @@ func TestFSRepository_AddURL(t *testing.T) {
 			}(),
 			id:      "test_id",
 			url:     "123456",
+			userID:  "123",
 			wantErr: false,
-			want:    urlStorage{"test_id": "123456"},
+			want: urlStorage{
+				"test_id": {OriginalURL: "123456", UserID: "123"}},
 		},
 		{
 			name: "Add URL to non-empty map",
@@ -46,11 +49,16 @@ func TestFSRepository_AddURL(t *testing.T) {
 
 				return f
 			}(),
-			urls:    urlStorage{"id_test": "654321"},
+			urls: urlStorage{
+				"id_test": {OriginalURL: "654321", UserID: "123"},
+			},
 			id:      "test_id",
 			url:     "123456",
+			userID:  "123",
 			wantErr: false,
-			want:    urlStorage{"id_test": "654321", "test_id": "123456"},
+			want: urlStorage{
+				"id_test": {OriginalURL: "654321", UserID: "123"},
+				"test_id": {OriginalURL: "123456", UserID: "123"}},
 		},
 		{
 			name: "Overwrite URL in map",
@@ -60,16 +68,25 @@ func TestFSRepository_AddURL(t *testing.T) {
 
 				return f
 			}(),
-			urls:    urlStorage{"test_id": "654321"},
+			urls: urlStorage{"test_id": {
+				OriginalURL: "654321",
+				UserID:      "321",
+			}},
 			id:      "test_id",
 			url:     "123456",
+			userID:  "123",
 			wantErr: false,
-			want:    urlStorage{"test_id": "123456"},
+			want: urlStorage{"test_id": {
+				OriginalURL: "123456",
+				UserID:      "123",
+			}},
 		},
 		{
 			name: "Non empty file",
 			file: func() *os.File {
-				urls := urlStorage{"id_test": "654321"}
+				urls := urlStorage{
+					"id_test": record{OriginalURL: "654321", UserID: "123"},
+				}
 
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
@@ -83,8 +100,12 @@ func TestFSRepository_AddURL(t *testing.T) {
 			urls:    urlStorage{},
 			id:      "test_id",
 			url:     "123456",
+			userID:  "123",
 			wantErr: false,
-			want:    urlStorage{"id_test": "654321", "test_id": "123456"},
+			want: urlStorage{
+				"id_test": {OriginalURL: "654321", UserID: "123"},
+				"test_id": {OriginalURL: "123456", UserID: "123"},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -101,7 +122,7 @@ func TestFSRepository_AddURL(t *testing.T) {
 				f.urls = tt.urls
 			}
 
-			gotErr := f.AddURL(context.TODO(), tt.id, tt.url)
+			gotErr := f.AddURL(context.TODO(), tt.userID, tt.id, tt.url)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)
@@ -133,7 +154,9 @@ func TestFSRepository_GetURL(t *testing.T) {
 
 				return f
 			}(),
-			urls:    urlStorage{"test": "123"},
+			urls: urlStorage{
+				"test": {OriginalURL: "123", UserID: "123"},
+			},
 			id:      "test",
 			want:    "123",
 			wantErr: false,
@@ -141,7 +164,9 @@ func TestFSRepository_GetURL(t *testing.T) {
 		{
 			name: "Non empty file",
 			file: func() *os.File {
-				urls := urlStorage{"test": "123"}
+				urls := urlStorage{
+					"test": {OriginalURL: "123", UserID: "123"},
+				}
 
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
@@ -199,6 +224,7 @@ func TestFSRepository_AddURLs(t *testing.T) {
 		name string // description of this test case
 		file *os.File
 
+		userID    string
 		batchURLs models.BatchURLs
 		urls      urlStorage
 		wantErr   bool
@@ -206,13 +232,14 @@ func TestFSRepository_AddURLs(t *testing.T) {
 	}{
 		{
 			name: "Add URL to empty map",
-			urls: map[string]string{},
+			urls: map[string]record{},
 			file: func() *os.File {
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
 
 				return f
 			}(),
+			userID: "123",
 			batchURLs: models.BatchURLs{
 				{
 					ID:  "abc",
@@ -220,12 +247,17 @@ func TestFSRepository_AddURLs(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    urlStorage{"abc": "123"},
+			want: urlStorage{"abc": {
+				OriginalURL: "123",
+				UserID:      "123",
+			}},
 		},
 		{
 			name: "Non empty file",
 			file: func() *os.File {
-				urls := urlStorage{"id_test": "654321"}
+				urls := urlStorage{
+					"id_test": {OriginalURL: "654321", UserID: "321"},
+				}
 
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
@@ -236,7 +268,8 @@ func TestFSRepository_AddURLs(t *testing.T) {
 
 				return f
 			}(),
-			urls: urlStorage{},
+			urls:   urlStorage{},
+			userID: "123",
 			batchURLs: models.BatchURLs{
 				{
 					ID:  "abc",
@@ -244,7 +277,10 @@ func TestFSRepository_AddURLs(t *testing.T) {
 				},
 			},
 			wantErr: false,
-			want:    urlStorage{"id_test": "654321", "abc": "123"},
+			want: urlStorage{
+				"id_test": {OriginalURL: "654321", UserID: "321"},
+				"abc":     {OriginalURL: "123", UserID: "123"},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -256,7 +292,7 @@ func TestFSRepository_AddURLs(t *testing.T) {
 				f.urls = tt.urls
 			}
 
-			gotErr := f.AddURLs(context.Background(), tt.batchURLs)
+			gotErr := f.AddURLs(context.Background(), tt.userID, tt.batchURLs)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)
@@ -291,7 +327,9 @@ func TestFSRepository_Count(t *testing.T) {
 		{
 			name: "Non empty storage",
 			file: func() *os.File {
-				urls := urlStorage{"id_test": "654321"}
+				urls := urlStorage{
+					"id_test": {OriginalURL: "123", UserID: "123"},
+				}
 
 				f, err := os.CreateTemp("", "data-*.json")
 				assert.NoError(t, err)
@@ -320,34 +358,6 @@ func TestFSRepository_Count(t *testing.T) {
 
 			assert.NoError(t, gotErr)
 			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
-func TestFSRepository_Ping(t *testing.T) {
-	tests := []struct {
-		name string // description of this test case
-		file *os.File
-	}{
-		{
-			name: "Always valid",
-			file: func() *os.File {
-				f, err := os.CreateTemp("", "data-*.json")
-				assert.NoError(t, err)
-
-				return f
-			}(),
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			f, err := NewFSRepository(tt.file)
-
-			require.NoError(t, err)
-
-			gotErr := f.Ping(context.Background())
-
-			assert.NoError(t, gotErr)
 		})
 	}
 }

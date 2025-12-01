@@ -8,41 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/darrior/urlshortener/internal/models"
+	"github.com/darrior/urlshortener/internal/mocks"
 	"github.com/darrior/urlshortener/internal/service"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/mock/gomock"
 )
-
-type testService struct {
-	urls map[string]string
-	ping bool
-}
-
-var _ service.IService = (*testService)(nil)
-
-func (t *testService) AddURL(_ context.Context, id string) (string, error) {
-	return "http://127.0.0.1:8080/AAAAAAA", nil
-}
-
-func (t *testService) AddURLs(ctx context.Context, longURLs models.ShortenerBatchRequest) (shortURLs models.ShortenerBatchResponse, err error) {
-	panic("unimplemented")
-}
-
-func (t *testService) GetURL(_ context.Context, id string) (string, error) {
-	url, ok := t.urls[id]
-	if !ok {
-		return "", errors.New("")
-	}
-
-	return url, nil
-}
-
-func (t *testService) Ping(ctx context.Context) error {
-	if !t.ping {
-		return errors.New("")
-	}
-	return nil
-}
 
 type hwant struct {
 	status      int
@@ -51,6 +21,11 @@ type hwant struct {
 }
 
 func Test_handler_errorHandler(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockIService(ctrl)
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -60,7 +35,7 @@ func Test_handler_errorHandler(t *testing.T) {
 	}{
 		{
 			name: "GET request to root",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req:  httptest.NewRequest(http.MethodGet, "/", nil),
 			want: hwant{
 				status:      http.StatusBadRequest,
@@ -70,7 +45,7 @@ func Test_handler_errorHandler(t *testing.T) {
 		},
 		{
 			name: "DELETE request to root",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req:  httptest.NewRequest(http.MethodDelete, "/", nil),
 			want: hwant{
 				status:      http.StatusBadRequest,
@@ -80,7 +55,7 @@ func Test_handler_errorHandler(t *testing.T) {
 		},
 		{
 			name: "GET request to some path",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req:  httptest.NewRequest(http.MethodGet, "/first/second", nil),
 			want: hwant{
 				status:      http.StatusBadRequest,
@@ -103,6 +78,15 @@ func Test_handler_errorHandler(t *testing.T) {
 }
 
 func Test_handler_postURL(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockIService(ctrl)
+
+	m.EXPECT().
+		AddURL(gomock.Any(), gomock.Any(), "https://example.com").
+		Return("http://127.0.0.1:8080/AAAAAAA", nil)
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -112,10 +96,12 @@ func Test_handler_postURL(t *testing.T) {
 	}{
 		{
 			name: "Empty POST request",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req: func() *http.Request {
 				r := httptest.NewRequest(http.MethodPost, "/", nil)
 				r.Header.Set("content-type", "test")
+				r = r.WithContext(context.WithValue(r.Context(), _contextUserID, "123"))
+
 				return r
 			}(),
 			want: hwant{
@@ -126,10 +112,12 @@ func Test_handler_postURL(t *testing.T) {
 		},
 		{
 			name: "Empty POST request with header",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req: func() *http.Request {
 				r := httptest.NewRequest(http.MethodPost, "/", nil)
 				r.Header.Add("content-type", "text/plain; charset=utf-8")
+				r = r.WithContext(context.WithValue(r.Context(), _contextUserID, "123"))
+
 				return r
 			}(),
 			want: hwant{
@@ -140,10 +128,11 @@ func Test_handler_postURL(t *testing.T) {
 		},
 		{
 			name: "Valid request",
-			h:    handler{service: &testService{urls: make(map[string]string)}},
+			h:    handler{service: m},
 			req: func() *http.Request {
 				r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader("https://example.com"))
 				r.Header.Add("content-type", "text/plain")
+				r = r.WithContext(context.WithValue(r.Context(), _contextUserID, "123"))
 
 				return r
 			}(),
@@ -168,6 +157,15 @@ func Test_handler_postURL(t *testing.T) {
 }
 
 func Test_handler_postAPIShorten(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockIService(ctrl)
+
+	m.EXPECT().
+		AddURL(gomock.Any(), gomock.Any(), "http://example.com").
+		Return("http://127.0.0.1:8080/AAAAAAA", nil)
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -178,7 +176,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 
 		{
 			name: "Empty POST request",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req: func() *http.Request {
 				r := httptest.NewRequest(http.MethodPost, "/", nil)
 				r.Header.Set("content-type", "test")
@@ -192,7 +190,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 		},
 		{
 			name: "Empty POST request with header",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req: func() *http.Request {
 				r := httptest.NewRequest(http.MethodPost, "/", nil)
 				r.Header.Add("content-type", "application/json")
@@ -206,7 +204,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 		},
 		{
 			name: "Invalid URL",
-			h:    handler{service: &testService{}},
+			h:    handler{service: m},
 			req: func() *http.Request {
 				r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"url": ""}`))
 				r.Header.Add("content-type", "application/json")
@@ -220,7 +218,7 @@ func Test_handler_postAPIShorten(t *testing.T) {
 		},
 		{
 			name: "Valid request",
-			h:    handler{service: &testService{urls: make(map[string]string)}},
+			h:    handler{service: m},
 			req: func() *http.Request {
 				r := httptest.NewRequest(http.MethodPost, "http://127.0.0.1:8080/", strings.NewReader(`{"url": "http://example.com"}`))
 				r.Header.Add("content-type", "application/json")
@@ -251,6 +249,14 @@ func Test_handler_getFullURL(t *testing.T) {
 	validReq := httptest.NewRequest(http.MethodGet, "/", nil)
 	validReq.SetPathValue("url_id", "AAAAAAA")
 
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockIService(ctrl)
+
+	m.EXPECT().GetURL(gomock.Any(), "").Return("", service.ErrorUnknownURL)
+	m.EXPECT().GetURL(gomock.Any(), "AAAAAAA").Return("https://example.com", nil)
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -260,7 +266,7 @@ func Test_handler_getFullURL(t *testing.T) {
 	}{
 		{
 			name: "Unkonwn short URL",
-			h:    handler{service: &testService{urls: make(map[string]string)}},
+			h:    handler{service: m},
 			req:  httptest.NewRequest(http.MethodGet, "/", nil),
 			want: hwant{
 				status:      http.StatusBadRequest,
@@ -270,7 +276,7 @@ func Test_handler_getFullURL(t *testing.T) {
 		},
 		{
 			name: "Valid request",
-			h:    handler{service: &testService{urls: map[string]string{"AAAAAAA": "https://example.com"}}},
+			h:    handler{service: m},
 			req:  validReq,
 			want: hwant{
 				status:      http.StatusTemporaryRedirect,
@@ -293,6 +299,24 @@ func Test_handler_getFullURL(t *testing.T) {
 }
 
 func Test_handler_getPing(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	m := mocks.NewMockIService(ctrl)
+
+	count := 0
+	m.EXPECT().
+		Ping(gomock.Any()).
+		DoAndReturn(func(_ any) error {
+			count += 1
+			if count%2 == 1 {
+				return nil
+			} else {
+				return errors.New("")
+			}
+		}).
+		AnyTimes()
+
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
@@ -302,7 +326,7 @@ func Test_handler_getPing(t *testing.T) {
 	}{
 		{
 			name: "Ping OK",
-			h:    handler{service: &testService{ping: true}},
+			h:    handler{service: m},
 			req:  httptest.NewRequest(http.MethodGet, "/ping", nil),
 			want: hwant{
 				status: http.StatusOK,
@@ -310,7 +334,7 @@ func Test_handler_getPing(t *testing.T) {
 		},
 		{
 			name: "Ping not OK",
-			h:    handler{service: &testService{ping: false}},
+			h:    handler{service: m},
 			req:  httptest.NewRequest(http.MethodGet, "/ping", nil),
 			want: hwant{
 				status: http.StatusInternalServerError,

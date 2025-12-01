@@ -14,28 +14,34 @@ func TestMapRepository_AddURL(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		urls    map[string]string
+		urls    urlStorage
+		userID  string
 		id      string
 		url     string
 		wantErr bool
 	}{
 		{
 			name:    "Add URL to empty map",
-			urls:    map[string]string{},
+			urls:    urlStorage{},
+			userID:  "123",
 			id:      "test_id",
 			url:     "123456",
 			wantErr: false,
 		},
 		{
-			name:    "Add URL to non-empty map",
-			urls:    map[string]string{"id_test": "654321"},
+			name: "Add URL to non-empty map",
+			urls: urlStorage{
+				"id_test": {OriginalURL: "654321", UserID: "321"},
+			},
 			id:      "test_id",
 			url:     "123456",
 			wantErr: false,
 		},
 		{
-			name:    "Overwrite URL in map",
-			urls:    map[string]string{"test_id": "654321"},
+			name: "Overwrite URL in map",
+			urls: urlStorage{
+				"test_id": {OriginalURL: "654321", UserID: "321"},
+			},
 			id:      "test_id",
 			url:     "123456",
 			wantErr: false,
@@ -44,7 +50,7 @@ func TestMapRepository_AddURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := MapRepository{urls: tt.urls}
-			gotErr := r.AddURL(context.TODO(), tt.id, tt.url)
+			gotErr := r.AddURL(context.TODO(), tt.userID, tt.id, tt.url)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)
@@ -52,7 +58,7 @@ func TestMapRepository_AddURL(t *testing.T) {
 			}
 
 			assert.NoError(t, gotErr)
-			assert.Equal(t, tt.url, r.urls[tt.id])
+			assert.Equal(t, tt.url, r.urls[tt.id].OriginalURL)
 		})
 	}
 }
@@ -61,12 +67,14 @@ func TestMapRepository_AddURLs(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
+		userID    string
 		batchURLs models.BatchURLs
-		want      map[string]string
+		want      urlStorage
 		wantErr   bool
 	}{
 		{
-			name: "Test AddURLs",
+			name:   "Test AddURLs",
+			userID: "123",
 			batchURLs: models.BatchURLs{
 				{
 					ID:  "abc",
@@ -77,9 +85,9 @@ func TestMapRepository_AddURLs(t *testing.T) {
 					URL: "321",
 				},
 			},
-			want: map[string]string{
-				"abc": "123",
-				"cba": "321",
+			want: urlStorage{
+				"abc": {OriginalURL: "123", UserID: "123"},
+				"cba": {OriginalURL: "321", UserID: "123"},
 			},
 			wantErr: false,
 		},
@@ -87,7 +95,7 @@ func TestMapRepository_AddURLs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			m := NewMapRepository()
-			gotErr := m.AddURLs(context.Background(), tt.batchURLs)
+			gotErr := m.AddURLs(context.Background(), tt.userID, tt.batchURLs)
 
 			if tt.wantErr {
 				assert.Error(t, gotErr)
@@ -104,21 +112,23 @@ func TestMapRepository_GetURL(t *testing.T) {
 	tests := []struct {
 		name string // description of this test case
 		// Named input parameters for target function.
-		urls    map[string]string
+		urls    urlStorage
 		id      string
 		want    string
 		wantErr bool
 	}{
 		{
 			name:    "Get url from empty map",
-			urls:    map[string]string{},
+			urls:    urlStorage{},
 			id:      "test_id",
 			want:    "",
 			wantErr: true,
 		},
 		{
-			name:    "Get valid url",
-			urls:    map[string]string{"test_id": "123456"},
+			name: "Get valid url",
+			urls: urlStorage{
+				"test_id": {OriginalURL: "123456", UserID: "123"},
+			},
 			id:      "test_id",
 			want:    "123456",
 			wantErr: false,
@@ -143,21 +153,21 @@ func TestMapRepository_GetURL(t *testing.T) {
 func TestMapRepository_Count(t *testing.T) {
 	tests := []struct {
 		name    string // description of this test case
-		urls    map[string]string
+		urls    urlStorage
 		want    int
 		wantErr bool
 	}{
 		{
 			name:    "Empty map",
-			urls:    map[string]string{},
+			urls:    urlStorage{},
 			want:    0,
 			wantErr: false,
 		},
 		{
 			name: "Non empty map",
-			urls: map[string]string{
-				"abc": "123",
-				"cba": "321",
+			urls: urlStorage{
+				"abc": {OriginalURL: "123", UserID: "123"},
+				"cba": {OriginalURL: "321", UserID: "123"},
 			},
 			want:    2,
 			wantErr: false,
