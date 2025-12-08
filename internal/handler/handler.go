@@ -48,20 +48,10 @@ func (h *handler) getPing(res http.ResponseWriter, req *http.Request) {
 }
 
 func (h *handler) getAPIUserURLs(res http.ResponseWriter, req *http.Request) {
-	cookies := req.CookiesNamed(_authCookieName)
-
-	claims, err := h.checkAuthCookies(cookies)
-	if err != nil {
-		res.WriteHeader(http.StatusBadRequest)
-		return
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
 	}
-
-	if claims.UserID == "" {
-		res.WriteHeader(http.StatusUnauthorized)
-		return
-	}
-
-	userID := claims.UserID
 
 	userURLs, err := h.service.GetUserURLs(req.Context(), userID)
 	if err != nil {

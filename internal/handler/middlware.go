@@ -80,7 +80,7 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 		cookies := req.CookiesNamed(_authCookieName)
 
 		claims, err := h.checkAuthCookies(cookies)
-		if err != nil || claims.UserID == "" {
+		if err != nil {
 			userID, err := h.service.NewUserID()
 			if err != nil {
 				res.WriteHeader(http.StatusInternalServerError)
@@ -91,7 +91,10 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 			}
 		}
 
-		userID := claims.UserID
+		if claims.UserID == "" {
+			res.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		tokenString, err := h.service.SignClaims(claims)
 		if err != nil {
@@ -99,7 +102,7 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 			return
 		}
 
-		nextReq := req.WithContext(context.WithValue(req.Context(), _contextUserID, userID))
+		nextReq := req.WithContext(context.WithValue(req.Context(), _contextUserID, claims.UserID))
 
 		n.ServeHTTP(res, nextReq)
 
