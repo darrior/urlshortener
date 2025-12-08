@@ -8,8 +8,10 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/darrior/urlshortener/internal/models"
+	"github.com/darrior/urlshortener/internal/models/api"
 	"github.com/darrior/urlshortener/internal/repository"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
+	"github.com/darrior/urlshortener/internal/service/auth"
 	"github.com/rs/zerolog/log"
 )
 
@@ -20,20 +22,24 @@ var (
 )
 
 type IService interface {
+	auth.Auth
 	AddURL(ctx context.Context, userID, longURL string) (shortURL string, err error)
-	AddURLs(ctx context.Context, userID string, longURLs models.ShortenerBatchRequest) (shortURLs models.ShortenerBatchResponse, err error)
+	AddURLs(ctx context.Context, userID string, longURLs api.ShortenerBatchRequest) (shortURLs api.ShortenerBatchResponse, err error)
 	GetURL(ctx context.Context, id string) (longURL string, err error)
+	GetUserURLs(ctx context.Context, userID string) (urls api.UserURLsResponse, err error)
 	Ping(ctx context.Context) (err error)
 }
 
 type Service struct {
+	auth.Auth
 	lock        sync.RWMutex
 	data        repository.Repository
 	baseAddress string
 }
 
-func NewService(data repository.Repository, baseAddress string) *Service {
+func NewService(data repository.Repository, baseAddress string, authKey string) *Service {
 	return &Service{
+		Auth:        auth.NewHS256Auth(authKey),
 		data:        data,
 		baseAddress: baseAddress,
 	}
@@ -74,29 +80,29 @@ func (s *Service) AddURL(ctx context.Context, userID, longURL string) (string, e
 	return shortURL, nil
 }
 
-func (s *Service) AddURLs(ctx context.Context, userID string, longURLs models.ShortenerBatchRequest) (models.ShortenerBatchResponse, error) {
+func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.ShortenerBatchRequest) (api.ShortenerBatchResponse, error) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	count, err := s.data.Count(ctx)
 	if err != nil {
-		return models.ShortenerBatchResponse{}, err
+		return api.ShortenerBatchResponse{}, err
 	}
 
-	var res models.ShortenerBatchResponse
-	var urls models.BatchURLs
+	var res api.ShortenerBatchResponse
+	var urls rmodels.BatchURLs
 	for _, entry := range longURLs {
 		id := generateURLID(count)
 		shortURL, err := url.JoinPath(s.baseAddress, id)
 		if err != nil {
-			return models.ShortenerBatchResponse{}, err
+			return api.ShortenerBatchResponse{}, err
 		}
 
-		res = append(res, models.BatchResponseEntry{
+		res = append(res, api.BatchResponseEntry{
 			CorrelationID: entry.CorrelationID,
 			ShortURL:      shortURL,
 		})
-		urls = append(urls, models.BatchURLEntry{
+		urls = append(urls, rmodels.BatchURLEntry{
 			ID:  id,
 			URL: entry.OriginalURL,
 		})
@@ -105,7 +111,7 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs models.Sh
 	}
 
 	if err := s.data.AddURLs(ctx, userID, urls); err != nil {
-		return models.ShortenerBatchResponse{}, err
+		return api.ShortenerBatchResponse{}, err
 	}
 
 	return res, nil
@@ -120,6 +126,35 @@ func (s *Service) GetURL(ctx context.Context, id string) (string, error) {
 	}
 
 	return longURL, nil
+}
+
+func (s *Service) GetUserURLs(ctx context.Context, userID string) (api.UserURLsResponse, error) {
+	urls, err := s.data.GetUserURLs(ctx, userID)
+	if err != nil {
+		return api.UserURLsResponse{}, fmt.Errorf("can not get user URLs from repository: %w", err)
+	}
+
+	var (
+		userURLs api.UserURLsResponse
+		errs     []error
+	)
+	for _, batchURL := range urls {
+		shortURL, err := url.JoinPath(s.baseAddress, batchURL.ID)
+		if err != nil {
+			errs = append(errs, err)
+		}
+
+		userURLs = append(userURLs, api.UserURLsResponseEntry{
+			ShortURL:    shortURL,
+			OriginalURL: batchURL.URL,
+		})
+	}
+
+	if len(errs) != 0 {
+		return api.UserURLsResponse{}, fmt.Errorf("can not get urls: %w", errors.Join(errs...))
+	}
+
+	return userURLs, nil
 }
 
 func (s *Service) Ping(ctx context.Context) error {

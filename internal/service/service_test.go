@@ -8,8 +8,9 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/darrior/urlshortener/internal/mocks"
-	"github.com/darrior/urlshortener/internal/models"
+	"github.com/darrior/urlshortener/internal/models/api"
 	"github.com/darrior/urlshortener/internal/repository"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 )
 
 var _ IService = new(Service)
@@ -42,7 +43,7 @@ func TestService_AddURL(t *testing.T) {
 		m.EXPECT().Count(gomock.Any()).Return(0, nil)
 
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(m, "http://127.0.0.1:8080")
+			s := NewService(m, "http://127.0.0.1:8080", "123")
 			got, gotErr := s.AddURL(context.TODO(), tt.userID, tt.url)
 
 			if tt.wantErr {
@@ -64,15 +65,15 @@ func TestService_AddURLs(t *testing.T) {
 		baseAddress string
 		// Named input parameters for target function.
 		userID   string
-		longURLs models.ShortenerBatchRequest
-		want     models.ShortenerBatchResponse
+		longURLs api.ShortenerBatchRequest
+		want     api.ShortenerBatchResponse
 		wantErr  bool
 	}{
 		{
 			name:        "Empty repository",
 			baseAddress: "http://127.0.0.1:8080",
 			userID:      "123",
-			longURLs: models.ShortenerBatchRequest{
+			longURLs: api.ShortenerBatchRequest{
 				{
 					CorrelationID: "a",
 					OriginalURL:   "https://example.com",
@@ -82,7 +83,7 @@ func TestService_AddURLs(t *testing.T) {
 					OriginalURL:   "http://example.com",
 				},
 			},
-			want: models.ShortenerBatchResponse{
+			want: api.ShortenerBatchResponse{
 				{
 					CorrelationID: "a",
 					ShortURL:      "http://127.0.0.1:8080/AAAAAAA",
@@ -104,7 +105,7 @@ func TestService_AddURLs(t *testing.T) {
 	m.EXPECT().AddURLs(
 		gomock.Any(),
 		"123",
-		models.BatchURLs{
+		rmodels.BatchURLs{
 			{
 				ID:  "AAAAAAA",
 				URL: "https://example.com",
@@ -122,7 +123,7 @@ func TestService_AddURLs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(m, tt.baseAddress)
+			s := NewService(m, tt.baseAddress, "")
 			got, gotErr := s.AddURLs(context.Background(), tt.userID, tt.longURLs)
 
 			if tt.wantErr {
@@ -183,7 +184,7 @@ func TestService_GetURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := NewService(m, "http://127.0.0.1:8080")
+			s := NewService(m, "http://127.0.0.1:8080", "")
 			got, gotErr := s.GetURL(context.TODO(), tt.id)
 
 			if tt.wantErr {
