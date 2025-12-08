@@ -148,6 +148,10 @@ func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (rmodels.
 		return rmodels.BatchURLs{}, errors.Join(errs...)
 	}
 
+	if err := rows.Err(); err != nil {
+		return rmodels.BatchURLs{}, fmt.Errorf("rows contains error: %w", err)
+	}
+
 	return urls, nil
 }
 
