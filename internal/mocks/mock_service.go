@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	models "github.com/darrior/urlshortener/internal/models"
+	api "github.com/darrior/urlshortener/internal/models/api"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -57,10 +57,10 @@ func (mr *MockIServiceMockRecorder) AddURL(ctx, userID, longURL any) *gomock.Cal
 }
 
 // AddURLs mocks base method.
-func (m *MockIService) AddURLs(ctx context.Context, userID string, longURLs models.ShortenerBatchRequest) (models.ShortenerBatchResponse, error) {
+func (m *MockIService) AddURLs(ctx context.Context, userID string, longURLs api.ShortenerBatchRequest) (api.ShortenerBatchResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddURLs", ctx, userID, longURLs)
-	ret0, _ := ret[0].(models.ShortenerBatchResponse)
+	ret0, _ := ret[0].(api.ShortenerBatchResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -86,6 +86,51 @@ func (mr *MockIServiceMockRecorder) GetURL(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetURL", reflect.TypeOf((*MockIService)(nil).GetURL), ctx, id)
 }
 
+// GetUserID mocks base method.
+func (m *MockIService) GetUserID(tokenString string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserID", tokenString)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserID indicates an expected call of GetUserID.
+func (mr *MockIServiceMockRecorder) GetUserID(tokenString any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserID", reflect.TypeOf((*MockIService)(nil).GetUserID), tokenString)
+}
+
+// GetUserURLs mocks base method.
+func (m *MockIService) GetUserURLs(ctx context.Context, userID string) (api.UserURLsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUserURLs", ctx, userID)
+	ret0, _ := ret[0].(api.UserURLsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUserURLs indicates an expected call of GetUserURLs.
+func (mr *MockIServiceMockRecorder) GetUserURLs(ctx, userID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserURLs", reflect.TypeOf((*MockIService)(nil).GetUserURLs), ctx, userID)
+}
+
+// NewToken mocks base method.
+func (m *MockIService) NewToken() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewToken")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewToken indicates an expected call of NewToken.
+func (mr *MockIServiceMockRecorder) NewToken() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewToken", reflect.TypeOf((*MockIService)(nil).NewToken))
+}
+
 // Ping mocks base method.
 func (m *MockIService) Ping(ctx context.Context) error {
 	m.ctrl.T.Helper()
@@ -98,4 +143,19 @@ func (m *MockIService) Ping(ctx context.Context) error {
 func (mr *MockIServiceMockRecorder) Ping(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockIService)(nil).Ping), ctx)
+}
+
+// ValidateToken mocks base method.
+func (m *MockIService) ValidateToken(tokenString string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ValidateToken", tokenString)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ValidateToken indicates an expected call of ValidateToken.
+func (mr *MockIServiceMockRecorder) ValidateToken(tokenString any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateToken", reflect.TypeOf((*MockIService)(nil).ValidateToken), tokenString)
 }

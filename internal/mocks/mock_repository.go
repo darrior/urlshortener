@@ -13,7 +13,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	models "github.com/darrior/urlshortener/internal/models"
+	models "github.com/darrior/urlshortener/internal/repository/models"
 	gomock "go.uber.org/mock/gomock"
 )
 
