@@ -11,8 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/darrior/urlshortener/internal/models"
+	"github.com/darrior/urlshortener/internal/models/api"
 	"github.com/darrior/urlshortener/internal/service"
+	"github.com/darrior/urlshortener/internal/service/auth"
 	"github.com/rs/zerolog/log"
 )
 
@@ -45,6 +46,46 @@ func (h *handler) getPing(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.WriteHeader(http.StatusOK)
+}
+
+func (h *handler) getAPIUserURLs(res http.ResponseWriter, req *http.Request) {
+	cookies := req.CookiesNamed(_authCookieName)
+	cookie, err := h.checkAuthCookies(cookies)
+	if errors.Is(err, auth.ErrorEmptyUserID) {
+		res.WriteHeader(http.StatusUnauthorized)
+		return
+	} else if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	userID, err := h.service.GetUserID(cookie.Value)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	userURLs, err := h.service.GetUserURLs(req.Context(), userID)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if len(userURLs) == 0 {
+		res.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	data, err := json.Marshal(userURLs)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Add("content-type", "application/json")
+	res.Header().Add("content-length", strconv.Itoa(len(data)))
+	res.WriteHeader(http.StatusOK)
+	_, _ = res.Write(data)
 }
 
 func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
@@ -93,7 +134,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var reqData models.ShortenerRequest
+	var reqData api.ShortenerRequest
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&reqData); err != nil {
@@ -122,7 +163,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resData := models.ShortenerResponse{
+	resData := api.ShortenerResponse{
 		Result: shortURL,
 	}
 
@@ -145,7 +186,7 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	var reqData models.ShortenerBatchRequest
+	var reqData api.ShortenerBatchRequest
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&reqData); err != nil {

@@ -3,7 +3,7 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
-	"io"
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -74,8 +74,33 @@ func extractMiddlware(h http.Handler) http.Handler {
 	return http.HandlerFunc(extractHandler)
 }
 
-func authCookieMiddlware(h http.Handler) http.Handler {
+func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 	authCookieHandler := func(res http.ResponseWriter, req *http.Request) {
+		cookies := req.CookiesNamed(_authCookieName)
+		cookie, err := h.checkAuthCookies(cookies)
+		if err != nil {
+			log.Warn().Err(err).Msg("Auth cookie not found")
+			token, err := h.service.NewToken()
+			if err != nil {
+				res.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			cookie = &http.Cookie{
+				Name:  _authCookieName,
+				Value: token,
+			}
+		}
+
+		userID, err := h.service.GetUserID(cookie.Value)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+		}
+
+		nextReq := req.WithContext(context.WithValue(req.Context(), _contextUserID, userID))
+
+		n.ServeHTTP(res, nextReq)
+
+		http.SetCookie(res, cookie)
 
 	}
 
