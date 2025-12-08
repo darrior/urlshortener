@@ -62,7 +62,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, userID string, batchURLs rmo
 		return fmt.Errorf("can not begin transaction: %w", err)
 	}
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url, users) VALUES ($1, $2, '{$3}') ON CONFLICT (url) DO UPDATE SET users = urls.users || EXCLUDED.users RETURNING id")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url, users) VALUES ($1, $2, $3) ON CONFLICT (url) DO UPDATE SET users = urls.users || EXCLUDED.users RETURNING id")
 	if err != nil {
 		return fmt.Errorf("can not prepare query: %w", err)
 	}
@@ -75,7 +75,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, userID string, batchURLs rmo
 
 	var errs []error
 	for _, url := range batchURLs {
-		row := stmt.QueryRowContext(ctx, url.ID, url.URL, userID)
+		row := stmt.QueryRowContext(ctx, url.ID, url.URL, []string{userID})
 
 		var inserted string
 		if err := row.Scan(&inserted); err != nil {
