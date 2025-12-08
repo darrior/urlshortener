@@ -12,46 +12,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const authCookieName = "auth_cookie"
+const _authCookieName = "auth_cookie"
 
 type contextUserID string
 
 const _contextUserID contextUserID = "user_id"
-
-type responseData struct {
-	status int
-	size   int
-}
-
-type loggingResponseWriter struct {
-	http.ResponseWriter
-	responseData *responseData
-}
-
-func (l *loggingResponseWriter) Write(b []byte) (int, error) {
-	size, err := l.ResponseWriter.Write(b)
-	l.responseData.size = size
-	return size, err
-}
-
-func (l *loggingResponseWriter) WriteHeader(status int) {
-	l.ResponseWriter.WriteHeader(status)
-	l.responseData.status = status
-}
-
-type gzipResponseWriter struct {
-	http.ResponseWriter
-	status int
-	writer io.Writer
-}
-
-func (g *gzipResponseWriter) Write(data []byte) (int, error) {
-	return g.writer.Write(data)
-}
-
-func (g *gzipResponseWriter) WriteHeader(status int) {
-	g.status = status
-}
 
 func logMiddlware(h http.Handler) http.Handler {
 	logHandler := func(res http.ResponseWriter, req *http.Request) {
@@ -169,14 +134,4 @@ func compressMiddlware(h http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(compressHandler)
-}
-
-func checkEncoding(encs []string, enc string) bool {
-	for _, e := range encs {
-		if strings.Contains(e, enc) {
-			return true
-		}
-	}
-
-	return false
 }
