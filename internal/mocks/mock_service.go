@@ -14,6 +14,7 @@ import (
 	reflect "reflect"
 
 	api "github.com/darrior/urlshortener/internal/models/api"
+	models "github.com/darrior/urlshortener/internal/service/models"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -86,21 +87,6 @@ func (mr *MockIServiceMockRecorder) GetURL(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetURL", reflect.TypeOf((*MockIService)(nil).GetURL), ctx, id)
 }
 
-// GetUserID mocks base method.
-func (m *MockIService) GetUserID(tokenString string) (string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetUserID", tokenString)
-	ret0, _ := ret[0].(string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetUserID indicates an expected call of GetUserID.
-func (mr *MockIServiceMockRecorder) GetUserID(tokenString any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserID", reflect.TypeOf((*MockIService)(nil).GetUserID), tokenString)
-}
-
 // GetUserURLs mocks base method.
 func (m *MockIService) GetUserURLs(ctx context.Context, userID string) (api.UserURLsResponse, error) {
 	m.ctrl.T.Helper()
@@ -116,19 +102,19 @@ func (mr *MockIServiceMockRecorder) GetUserURLs(ctx, userID any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserURLs", reflect.TypeOf((*MockIService)(nil).GetUserURLs), ctx, userID)
 }
 
-// NewToken mocks base method.
-func (m *MockIService) NewToken() (string, error) {
+// NewUserID mocks base method.
+func (m *MockIService) NewUserID() (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewToken")
+	ret := m.ctrl.Call(m, "NewUserID")
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// NewToken indicates an expected call of NewToken.
-func (mr *MockIServiceMockRecorder) NewToken() *gomock.Call {
+// NewUserID indicates an expected call of NewUserID.
+func (mr *MockIServiceMockRecorder) NewUserID() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewToken", reflect.TypeOf((*MockIService)(nil).NewToken))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewUserID", reflect.TypeOf((*MockIService)(nil).NewUserID))
 }
 
 // Ping mocks base method.
@@ -145,11 +131,26 @@ func (mr *MockIServiceMockRecorder) Ping(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockIService)(nil).Ping), ctx)
 }
 
+// SignClaims mocks base method.
+func (m *MockIService) SignClaims(claims *models.Claims) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SignClaims", claims)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SignClaims indicates an expected call of SignClaims.
+func (mr *MockIServiceMockRecorder) SignClaims(claims any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SignClaims", reflect.TypeOf((*MockIService)(nil).SignClaims), claims)
+}
+
 // ValidateToken mocks base method.
-func (m *MockIService) ValidateToken(tokenString string) (bool, error) {
+func (m *MockIService) ValidateToken(tokenString string) (*models.Claims, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateToken", tokenString)
-	ret0, _ := ret[0].(bool)
+	ret0, _ := ret[0].(*models.Claims)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

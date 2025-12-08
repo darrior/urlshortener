@@ -10,15 +10,10 @@ import (
 	"github.com/google/uuid"
 )
 
-var (
-	ErrorTokenInvalid = errors.New("token is invalid")
-	ErrorEmptyUserID  = errors.New("user_id is empty")
-)
-
 type Auth interface {
-	NewToken() (tokenString string, err error)
-	GetUserID(tokenString string) (userID string, err error)
-	ValidateToken(tokenString string) (valid bool, err error)
+	SignClaims(claims *smodels.Claims) (tokenString string, err error)
+	ValidateToken(tokenString string) (claims *smodels.Claims, err error)
+	NewUserID() (userID string, err error)
 }
 
 type HS256Auth struct {
@@ -31,16 +26,7 @@ func NewHS256Auth(key string) Auth {
 	}
 }
 
-func (h *HS256Auth) NewToken() (string, error) {
-	uuid, err := generateUUID()
-	if err != nil {
-		return "", err
-	}
-
-	claims := &smodels.Claims{
-		UserID: uuid,
-	}
-
+func (h *HS256Auth) SignClaims(claims *smodels.Claims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString(h.key)
@@ -51,35 +37,30 @@ func (h *HS256Auth) NewToken() (string, error) {
 	return tokenString, nil
 }
 
-func (h *HS256Auth) GetUserID(tokenString string) (string, error) {
+func (h *HS256Auth) ValidateToken(tokenString string) (*smodels.Claims, error) {
 	claims := &smodels.Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (any, error) {
 		return h.key, nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("can not parse claims: %w", err)
+		return nil, fmt.Errorf("can not parse claims: %w", err)
 	}
 
 	if !token.Valid {
-		return "", ErrorTokenInvalid
+		errorTokenInvalid := errors.New("token is invalid")
+		return nil, errorTokenInvalid
 	}
 
-	if claims.UserID == "" {
-		return "", ErrorEmptyUserID
-	}
-
-	return claims.UserID, nil
+	return claims, nil
 }
 
-func (h *HS256Auth) ValidateToken(tokenString string) (bool, error) {
-	token, err := jwt.Parse(tokenString, func(_ *jwt.Token) (any, error) {
-		return h.key, nil
-	})
+func (h *HS256Auth) NewUserID() (string, error) {
+	userID, err := generateUUID()
 	if err != nil {
-		return false, fmt.Errorf("cannot parse token")
+		return "", fmt.Errorf("can not generate uuid: %w", err)
 	}
 
-	return token.Valid, nil
+	return userID, err
 }
 
 func generateUUID() (string, error) {

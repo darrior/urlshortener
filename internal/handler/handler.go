@@ -13,7 +13,6 @@ import (
 
 	"github.com/darrior/urlshortener/internal/models/api"
 	"github.com/darrior/urlshortener/internal/service"
-	"github.com/darrior/urlshortener/internal/service/auth"
 	"github.com/rs/zerolog/log"
 )
 
@@ -50,23 +49,23 @@ func (h *handler) getPing(res http.ResponseWriter, req *http.Request) {
 
 func (h *handler) getAPIUserURLs(res http.ResponseWriter, req *http.Request) {
 	cookies := req.CookiesNamed(_authCookieName)
-	cookie, err := h.checkAuthCookies(cookies)
-	if errors.Is(err, auth.ErrorEmptyUserID) {
-		res.WriteHeader(http.StatusUnauthorized)
-		return
-	} else if err != nil {
+
+	claims, err := h.checkAuthCookies(cookies)
+	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	userID, err := h.service.GetUserID(cookie.Value)
-	if err != nil {
-		res.WriteHeader(http.StatusInternalServerError)
+	if claims.UserID == "" {
+		res.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
+	userID := claims.UserID
+
 	userURLs, err := h.service.GetUserURLs(req.Context(), userID)
 	if err != nil {
+		log.Error().Err(err).Msg("can not get user URLs")
 		res.WriteHeader(http.StatusInternalServerError)
 		return
 	}

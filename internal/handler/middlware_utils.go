@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+
+	smodels "github.com/darrior/urlshortener/internal/service/models"
 )
 
 type responseData struct {
@@ -53,14 +55,16 @@ func checkEncoding(encs []string, enc string) bool {
 	return false
 }
 
-func (h *handler) checkAuthCookies(cookies []*http.Cookie) (*http.Cookie, error) {
+func (h *handler) checkAuthCookies(cookies []*http.Cookie) (*smodels.Claims, error) {
 	var errs []error
 	for _, cookie := range cookies {
-		if valid, err := h.service.ValidateToken(cookie.Value); err != nil && valid {
-			return cookie, nil
-		} else if err != nil {
+		claims, err := h.service.ValidateToken(cookie.Value)
+		if err != nil {
 			errs = append(errs, err)
+			continue
 		}
+
+		return claims, nil
 	}
 
 	return nil, fmt.Errorf("errors in token validation: %w", errors.Join(errs...))

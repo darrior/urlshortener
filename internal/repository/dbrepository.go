@@ -133,7 +133,7 @@ func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (rmodels.
 
 	for rows.Next() {
 		var id, url string
-		if err := rows.Scan(id, url); err != nil {
+		if err := rows.Scan(&id, &url); err != nil {
 			errs = append(errs, err)
 			continue
 		}

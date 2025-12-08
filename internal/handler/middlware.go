@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/darrior/urlshortener/internal/service/models"
 	"github.com/rs/zerolog/log"
 )
 
@@ -77,31 +78,37 @@ func extractMiddlware(h http.Handler) http.Handler {
 func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 	authCookieHandler := func(res http.ResponseWriter, req *http.Request) {
 		cookies := req.CookiesNamed(_authCookieName)
-		cookie, err := h.checkAuthCookies(cookies)
-		if err != nil {
-			log.Warn().Err(err).Msg("Auth cookie not found")
-			token, err := h.service.NewToken()
+
+		claims, err := h.checkAuthCookies(cookies)
+		if err != nil || claims.UserID == "" {
+			userID, err := h.service.NewUserID()
 			if err != nil {
 				res.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			cookie = &http.Cookie{
-				Name:  _authCookieName,
-				Value: token,
+			claims = &models.Claims{
+				UserID: userID,
 			}
 		}
 
-		userID, err := h.service.GetUserID(cookie.Value)
+		userID := claims.UserID
+
+		tokenString, err := h.service.SignClaims(claims)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 
 		nextReq := req.WithContext(context.WithValue(req.Context(), _contextUserID, userID))
 
 		n.ServeHTTP(res, nextReq)
 
-		http.SetCookie(res, cookie)
+		cookie := &http.Cookie{
+			Name:  _authCookieName,
+			Value: tokenString,
+		}
 
+		http.SetCookie(res, cookie)
 	}
 
 	return http.HandlerFunc(authCookieHandler)
