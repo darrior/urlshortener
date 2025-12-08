@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository/migrations"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 	"github.com/rs/zerolog/log"
 )
 
@@ -42,7 +42,7 @@ func NewDBRepository(db *sql.DB) (*DBRepository, error) {
 }
 
 func (d *DBRepository) AddURL(ctx context.Context, userID, id, url string) error {
-	row := d.db.QueryRowContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET users = EXCLUDED.users || $3 RETURNING id", id, url, userID)
+	row := d.db.QueryRowContext(ctx, "INSERT INTO urls (id, url, users) VALUES ($1, $2, $3) ON CONFLICT (url) DO UPDATE SET users = urls.users || EXCLUDED.users RETURNING id", id, url, []string{userID})
 	var inserted string
 	if err := row.Scan(&inserted); err != nil {
 		log.Error().Err(err).Msg("Can not scan row")
@@ -56,13 +56,13 @@ func (d *DBRepository) AddURL(ctx context.Context, userID, id, url string) error
 	return nil
 }
 
-func (d *DBRepository) AddURLs(ctx context.Context, userID string, batchURLs models.BatchURLs) error {
+func (d *DBRepository) AddURLs(ctx context.Context, userID string, batchURLs rmodels.BatchURLs) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("can not begin transaction: %w", err)
 	}
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET users = EXCLUDED.users || $3 RETURNING id")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url, users) VALUES ($1, $2, '{$3}') ON CONFLICT (url) DO UPDATE SET users = urls.users || EXCLUDED.users RETURNING id")
 	if err != nil {
 		return fmt.Errorf("can not prepare query: %w", err)
 	}
@@ -120,15 +120,15 @@ func (d *DBRepository) GetURL(ctx context.Context, id string) (string, error) {
 	return url, nil
 }
 
-func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (models.BatchURLs, error) {
+func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (rmodels.BatchURLs, error) {
 	rows, err := d.db.QueryContext(ctx, "SELECT id, url FROM urls WHERE $1 = ANY(users)", userID)
 	if err != nil {
-		return models.BatchURLs{}, fmt.Errorf("can not get user's urls: %w", err)
+		return rmodels.BatchURLs{}, fmt.Errorf("can not get user's urls: %w", err)
 	}
 
 	var (
 		errs []error
-		urls models.BatchURLs
+		urls rmodels.BatchURLs
 	)
 
 	for rows.Next() {
@@ -138,14 +138,14 @@ func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (models.B
 			continue
 		}
 
-		urls = append(urls, models.BatchURLEntry{
+		urls = append(urls, rmodels.BatchURLEntry{
 			ID:  id,
 			URL: url,
 		})
 
 	}
 	if len(errs) != 0 {
-		return models.BatchURLs{}, errors.Join(errs...)
+		return rmodels.BatchURLs{}, errors.Join(errs...)
 	}
 
 	return urls, nil

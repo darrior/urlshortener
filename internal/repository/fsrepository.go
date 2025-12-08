@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/darrior/urlshortener/internal/models"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 	"github.com/darrior/urlshortener/internal/repository/storage"
 	"github.com/rs/zerolog/log"
 )
@@ -45,7 +45,7 @@ func (f *FSRepository) AddURL(_ context.Context, userID, id, url string) error {
 	return nil
 }
 
-func (f *FSRepository) AddURLs(_ context.Context, userID string, batchURLs models.BatchURLs) error {
+func (f *FSRepository) AddURLs(_ context.Context, userID string, batchURLs rmodels.BatchURLs) error {
 	if err := f.MapRepository.AddURLs(context.TODO(), userID, batchURLs); err != nil {
 		return err
 	}

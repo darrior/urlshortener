@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/darrior/urlshortener/internal/models"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -68,14 +68,14 @@ func TestMapRepository_AddURLs(t *testing.T) {
 		name string // description of this test case
 		// Named input parameters for target function.
 		userID    string
-		batchURLs models.BatchURLs
+		batchURLs rmodels.BatchURLs
 		want      urlStorage
 		wantErr   bool
 	}{
 		{
 			name:   "Test AddURLs",
 			userID: "123",
-			batchURLs: models.BatchURLs{
+			batchURLs: rmodels.BatchURLs{
 				{
 					ID:  "abc",
 					URL: "123",

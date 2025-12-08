@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/darrior/urlshortener/internal/models"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 )
 
 type MapRepository struct {
@@ -31,7 +31,7 @@ func (m *MapRepository) AddURL(_ context.Context, userID, id, url string) error 
 	return nil
 }
 
-func (m *MapRepository) AddURLs(_ context.Context, userID string, batchURLs models.BatchURLs) error {
+func (m *MapRepository) AddURLs(_ context.Context, userID string, batchURLs rmodels.BatchURLs) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
@@ -64,15 +64,15 @@ func (m *MapRepository) GetURL(_ context.Context, id string) (string, error) {
 	return url.OriginalURL, nil
 }
 
-func (m *MapRepository) GetUserURLs(_ context.Context, userID string) (models.BatchURLs, error) {
+func (m *MapRepository) GetUserURLs(_ context.Context, userID string) (rmodels.BatchURLs, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	var urls models.BatchURLs
+	var urls rmodels.BatchURLs
 
 	for id, record := range m.urls {
 		if record.UserID == userID {
-			urls = append(urls, models.BatchURLEntry{ID: id, URL: record.OriginalURL})
+			urls = append(urls, rmodels.BatchURLEntry{ID: id, URL: record.OriginalURL})
 		}
 	}
 

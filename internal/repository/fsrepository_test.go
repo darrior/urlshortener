@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/darrior/urlshortener/internal/models"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -225,7 +225,7 @@ func TestFSRepository_AddURLs(t *testing.T) {
 		file *os.File
 
 		userID    string
-		batchURLs models.BatchURLs
+		batchURLs rmodels.BatchURLs
 		urls      urlStorage
 		wantErr   bool
 		want      urlStorage
@@ -240,7 +240,7 @@ func TestFSRepository_AddURLs(t *testing.T) {
 				return f
 			}(),
 			userID: "123",
-			batchURLs: models.BatchURLs{
+			batchURLs: rmodels.BatchURLs{
 				{
 					ID:  "abc",
 					URL: "123",
@@ -270,7 +270,7 @@ func TestFSRepository_AddURLs(t *testing.T) {
 			}(),
 			urls:   urlStorage{},
 			userID: "123",
-			batchURLs: models.BatchURLs{
+			batchURLs: rmodels.BatchURLs{
 				{
 					ID:  "abc",
 					URL: "123",
