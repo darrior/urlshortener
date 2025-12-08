@@ -20,6 +20,7 @@ type host string
 const (
 	_defaultListenAddress  host   = "127.0.0.1:8080"
 	_defaultStoragFilePath string = ""
+	_defaultAuthKey               = "1q2w3e4r5t6y7u8i9o0p"
 )
 
 var _defaultBaseAddress = url.URL{
@@ -34,6 +35,7 @@ type Config struct {
 	BaseAddress   url.URL         `env:"BASE_ADDRESS"`
 	StorageFile   string          `env:"FILE_STORAGE_PATH"`
 	DatabaseDSN   *pgx.ConnConfig `env:"DATABASE_DSN"`
+	AuthKey       string          `env:"AUTH_KEY"`
 }
 
 func DefaultConfig() Config {
@@ -42,6 +44,7 @@ func DefaultConfig() Config {
 		BaseAddress:   _defaultBaseAddress,
 		StorageFile:   _defaultStoragFilePath,
 		DatabaseDSN:   _defaultDatabaseDSN,
+		AuthKey:       _defaultAuthKey,
 	}
 }
 
@@ -53,6 +56,7 @@ func ParseConfig() (Config, error) {
 	set.Func("b", "base address for short URL", c.validateBaseAddress)
 	set.Func("f", "path to storage file", c.validateSorageFile)
 	set.Func("d", "database DSN", c.validateDatabaseDSN)
+	set.Func("k", "authentication key", c.validateAuthKey)
 	if err := set.Parse(os.Args[1:]); err != nil {
 		return Config{}, err
 	}
@@ -118,6 +122,12 @@ func (c *Config) validateDatabaseDSN(dsn string) error {
 	}
 
 	c.DatabaseDSN = conf
+	return nil
+}
+
+func (c *Config) validateAuthKey(key string) error {
+	c.AuthKey = key
+
 	return nil
 }
 
