@@ -26,6 +26,11 @@ lint path="./...":
 # Run linter and unit-tests.
 check: lint test
 
+# Create new SQL migration.
+[working-directory: 'migrations']
+new-migration name:
+    goose create {{name}} sql
+
 # Generaet mock files from all intefaces.
 generate-mocks: generate-repository-mock generate-service-mock
 
