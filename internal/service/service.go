@@ -19,6 +19,7 @@ var (
 	ErrorUnknownURL   = errors.New("unkonwn URL")
 	ErrorCannotAddURL = errors.New("cannot add URL")
 	ErrorURLExists    = errors.New("passed existing URL")
+	ErrorURLGone      = errors.New("URL is gone")
 )
 
 type IService interface {
@@ -165,7 +166,9 @@ func (s *Service) GetURL(ctx context.Context, id string) (string, error) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 	longURL, err := s.data.GetURL(ctx, id)
-	if err != nil {
+	if errors.Is(err, repository.ErrorDeleted) {
+		return "", ErrorURLGone
+	} else if err != nil {
 		return "", fmt.Errorf("%s: %w", ErrorUnknownURL.Error(), err)
 	}
 

@@ -116,13 +116,13 @@ func (d *DBRepository) GetURL(ctx context.Context, id string) (string, error) {
 
 	var (
 		url     string
-		deleted bool
+		deleted sql.NullBool
 	)
 	if err := row.Scan(&url, &deleted); err != nil {
 		return "", fmt.Errorf("can not parse row: %w", err)
 	}
 
-	if deleted {
+	if deleted.Valid && deleted.Bool {
 		return "", ErrorDeleted
 	}
 
@@ -175,7 +175,7 @@ func (d *DBRepository) RemoveURLs(ctx context.Context, ids <-chan rmodels.BatchI
 		batch := &pgx.Batch{}
 
 		for id := range ids {
-			batch.Queue("UPDATE urls SET deleted = TRUE WHERE id = $1 AND users[0] = $2", id.ID, id.UserID)
+			batch.Queue("UPDATE urls SET deleted = TRUE WHERE id = $1 AND users[1] = $2", id.ID, id.UserID)
 		}
 
 		res := conn.SendBatch(ctx, batch)

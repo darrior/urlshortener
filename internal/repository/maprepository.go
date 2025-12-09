@@ -75,6 +75,10 @@ func (m *MapRepository) GetURL(_ context.Context, id string) (string, error) {
 		return "", ErrorNotFound
 	}
 
+	if url.Deleted {
+		return "", ErrorDeleted
+	}
+
 	return url.OriginalURL, nil
 }
 

@@ -30,7 +30,10 @@ func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
 	shortURL := req.PathValue("url_id")
 
 	fullURL, err := h.service.GetURL(req.Context(), shortURL)
-	if err != nil {
+	if errors.Is(err, service.ErrorURLGone) {
+		res.WriteHeader(http.StatusGone)
+		return
+	} else if err != nil {
 		http.Error(res, "Short URL not found", http.StatusBadRequest)
 		return
 	}
