@@ -122,6 +122,9 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 }
 
 func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
 	if s.removeChannel == nil {
 		s.removeChannel = make(chan rmodels.BatchIDsEntry)
 		s.removeWG = sync.WaitGroup{}
@@ -138,9 +141,11 @@ func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) e
 		defer func() {
 			go func() {
 				s.removeWG.Wait()
+				s.lock.Lock()
 				close(s.removeChannel)
 				<-done
 				s.removeChannel = nil
+				s.lock.Unlock()
 			}()
 		}()
 	}
