@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -213,4 +214,31 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 	res.Header().Set("content-length", strconv.Itoa(len(data)))
 	res.WriteHeader(http.StatusCreated)
 	_, _ = res.Write(data)
+}
+
+func (h *handler) deleteAPIUserURLs(res http.ResponseWriter, req *http.Request) {
+	if !strings.HasPrefix(req.Header.Get("content-type"), "application/json") {
+		http.Error(res, `Content type must be "application/json"`, http.StatusBadRequest)
+		return
+	}
+
+	var reqData []string
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&reqData); err != nil {
+		http.Error(res, "Can not unmarshal JSON", http.StatusBadRequest)
+		return
+	}
+
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	if err := h.service.RemoveURLs(context.Background(), userID, reqData); err != nil {
+		log.Error().Err(err).Msg("Can not delete user URLs")
+		http.Error(res, "Error while deleting URLs", http.StatusInternalServerError)
+		return
+	}
+
+	res.WriteHeader(http.StatusAccepted)
 }

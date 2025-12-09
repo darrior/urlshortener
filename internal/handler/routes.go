@@ -15,4 +15,6 @@ func (s *Server) addRoutes() {
 	s.mux.Post("/", s.h.postURL)
 	s.mux.Post("/api/shorten", s.h.postAPIShorten)
 	s.mux.Post("/api/shorten/batch", s.h.postAPIShortenBatch)
+
+	s.mux.Delete("/api/user/urls", s.h.deleteAPIUserURLs)
 }
