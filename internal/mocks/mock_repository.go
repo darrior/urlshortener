@@ -141,3 +141,17 @@ func (mr *MockRepositoryMockRecorder) Ping(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockRepository)(nil).Ping), ctx)
 }
+
+// RemoveURLs mocks base method.
+func (m *MockRepository) RemoveURLs(ctx context.Context, ids <-chan models.BatchIDsEntry) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveURLs", ctx, ids)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveURLs indicates an expected call of RemoveURLs.
+func (mr *MockRepositoryMockRecorder) RemoveURLs(ctx, ids any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveURLs", reflect.TypeOf((*MockRepository)(nil).RemoveURLs), ctx, ids)
+}
