@@ -45,6 +45,20 @@ func (m *MapRepository) AddURLs(_ context.Context, userID string, batchURLs rmod
 	return nil
 }
 
+func (m *MapRepository) RemoveURLs(_ context.Context, ids <-chan rmodels.BatchIDsEntry) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for id := range ids {
+		if r, ok := m.urls[id.ID]; ok && r.UserID == id.UserID {
+			r.Deleted = true
+			m.urls[id.ID] = r
+		}
+	}
+
+	return nil
+}
+
 func (m *MapRepository) Count(_ context.Context) (int, error) {
 	m.lock.Lock()
 	defer m.lock.Unlock()
@@ -72,7 +86,7 @@ func (m *MapRepository) GetUserURLs(_ context.Context, userID string) (rmodels.B
 
 	for id, record := range m.urls {
 		if record.UserID == userID {
-			urls = append(urls, rmodels.BatchURLEntry{ID: id, URL: record.OriginalURL})
+			urls = append(urls, rmodels.BatchURLsEntry{ID: id, URL: record.OriginalURL})
 		}
 	}
 

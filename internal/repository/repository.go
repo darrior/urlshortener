@@ -11,6 +11,7 @@ import (
 type Repository interface {
 	AddURL(ctx context.Context, userID, id, url string) (err error)
 	AddURLs(ctx context.Context, userID string, batchURLs rmodels.BatchURLs) (err error)
+	RemoveURLs(ctx context.Context, ids <-chan rmodels.BatchIDsEntry) (err error)
 	Count(ctx context.Context) (count int, err error)
 	GetURL(ctx context.Context, id string) (url string, err error)
 	GetUserURLs(ctx context.Context, userID string) (urls rmodels.BatchURLs, err error)
@@ -18,4 +19,7 @@ type Repository interface {
 	Close() (err error)
 }
 
-var ErrorNotFound = errors.New("not found")
+var (
+	ErrorNotFound = errors.New("not found")
+	ErrorDeleted  = errors.New("URL deleted")
+)

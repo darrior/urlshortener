@@ -1,8 +1,15 @@
 package models
 
-type BatchURLs []BatchURLEntry
+type BatchURLs []BatchURLsEntry
 
-type BatchURLEntry struct {
+type BatchURLsEntry struct {
 	ID  string
 	URL string
+}
+
+type BatchIDs []BatchIDsEntry
+
+type BatchIDsEntry struct {
+	ID     string
+	UserID string
 }

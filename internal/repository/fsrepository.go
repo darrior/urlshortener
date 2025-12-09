@@ -57,6 +57,18 @@ func (f *FSRepository) AddURLs(_ context.Context, userID string, batchURLs rmode
 	return nil
 }
 
+func (f *FSRepository) RemoveURLs(_ context.Context, ids <-chan rmodels.BatchIDsEntry) error {
+	if err := f.MapRepository.RemoveURLs(context.TODO(), ids); err != nil {
+		return err
+	}
+
+	if err := storage.UpdateFile(f.file, f.urls); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (f *FSRepository) Close() error {
 	return f.file.Close()
 }

@@ -8,6 +8,8 @@ import (
 
 	"github.com/darrior/urlshortener/internal/repository/migrations"
 	rmodels "github.com/darrior/urlshortener/internal/repository/models"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog/log"
 )
 
@@ -110,11 +112,18 @@ func (d *DBRepository) Count(ctx context.Context) (int, error) {
 }
 
 func (d *DBRepository) GetURL(ctx context.Context, id string) (string, error) {
-	row := d.db.QueryRowContext(ctx, "SELECT url FROM urls WHERE id = $1", id)
+	row := d.db.QueryRowContext(ctx, "SELECT url, deleted FROM urls WHERE id = $1", id)
 
-	var url string
-	if err := row.Scan(&url); err != nil {
+	var (
+		url     string
+		deleted bool
+	)
+	if err := row.Scan(&url, &deleted); err != nil {
 		return "", fmt.Errorf("can not parse row: %w", err)
+	}
+
+	if deleted {
+		return "", ErrorDeleted
 	}
 
 	return url, nil
@@ -138,7 +147,7 @@ func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (rmodels.
 			continue
 		}
 
-		urls = append(urls, rmodels.BatchURLEntry{
+		urls = append(urls, rmodels.BatchURLsEntry{
 			ID:  id,
 			URL: url,
 		})
@@ -153,6 +162,37 @@ func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (rmodels.
 	}
 
 	return urls, nil
+}
+
+func (d *DBRepository) RemoveURLs(ctx context.Context, ids <-chan rmodels.BatchIDsEntry) error {
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("can not get DB connection from pool: %w", err)
+	}
+
+	err = conn.Raw(func(db any) error {
+		conn := db.(*stdlib.Conn).Conn()
+		batch := &pgx.Batch{}
+
+		for id := range ids {
+			batch.Queue("UPDATE urls SET deleted = TRUE WHERE id = $1 AND users[0] = $2", id.ID, id.UserID)
+		}
+
+		res := conn.SendBatch(ctx, batch)
+
+		if err := res.Close(); err != nil {
+			return fmt.Errorf("can not close batch update: %w", err)
+		}
+
+		return nil
+
+	})
+
+	if err != nil {
+		return fmt.Errorf("can not complete batch update: %w", err)
+	}
+
+	return nil
 }
 
 func (d *DBRepository) Ping(ctx context.Context) error {
