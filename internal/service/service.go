@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 
 	"github.com/darrior/urlshortener/internal/models/api"
 	"github.com/darrior/urlshortener/internal/repository"
@@ -37,19 +38,16 @@ type Service struct {
 	lock          sync.RWMutex
 	data          repository.Repository
 	removeChannel chan rmodels.BatchIDsEntry
-	removeDone    chan struct{}
+	removeDone    atomic.Bool
 	baseAddress   string
 }
 
 func NewService(data repository.Repository, baseAddress string, authKey string) *Service {
-	done := make(chan struct{})
-	close(done)
-
 	return &Service{
 		Auth:          auth.NewHS256Auth(authKey),
 		data:          data,
 		removeChannel: make(chan rmodels.BatchIDsEntry),
-		removeDone:    done,
+		removeDone:    atomic.Bool{},
 		baseAddress:   baseAddress,
 	}
 }
@@ -127,16 +125,14 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 }
 
 func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
-
-	if _, ok := <-s.removeDone; !ok {
-		s.removeDone = make(chan struct{})
-
+	if s.removeDone.Load() {
 		defer func() {
+			s.removeDone.Swap(false)
 			go func() {
 				if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
 					log.Error().Err(err).Msg("Can not remove URLs from repository")
 				}
-				close(s.removeDone)
+				s.removeDone.Store(true)
 			}()
 		}()
 	}
