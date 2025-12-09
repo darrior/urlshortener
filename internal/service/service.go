@@ -25,6 +25,7 @@ type IService interface {
 	auth.Auth
 	AddURL(ctx context.Context, userID, longURL string) (shortURL string, err error)
 	AddURLs(ctx context.Context, userID string, longURLs api.ShortenerBatchRequest) (shortURLs api.ShortenerBatchResponse, err error)
+	RemoveURLs(ctx context.Context, userID string, ids []string) (err error)
 	GetURL(ctx context.Context, id string) (longURL string, err error)
 	GetUserURLs(ctx context.Context, userID string) (urls api.UserURLsResponse, err error)
 	Ping(ctx context.Context) (err error)
@@ -32,9 +33,11 @@ type IService interface {
 
 type Service struct {
 	auth.Auth
-	lock        sync.RWMutex
-	data        repository.Repository
-	baseAddress string
+	lock          sync.RWMutex
+	data          repository.Repository
+	removeChannel chan rmodels.BatchIDsEntry
+	removeWG      sync.WaitGroup
+	baseAddress   string
 }
 
 func NewService(data repository.Repository, baseAddress string, authKey string) *Service {
@@ -102,7 +105,7 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 			CorrelationID: entry.CorrelationID,
 			ShortURL:      shortURL,
 		})
-		urls = append(urls, rmodels.BatchURLEntry{
+		urls = append(urls, rmodels.BatchURLsEntry{
 			ID:  id,
 			URL: entry.OriginalURL,
 		})
@@ -115,6 +118,47 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 	}
 
 	return res, nil
+}
+
+func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	if s.removeChannel == nil {
+		s.removeChannel = make(chan rmodels.BatchIDsEntry)
+		s.removeWG = sync.WaitGroup{}
+
+		done := make(chan struct{})
+
+		go func() {
+			if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
+				log.Error().Err(err).Msg("Can not remove URLs from repository")
+			}
+			close(done)
+		}()
+
+		defer func() {
+			go func() {
+				s.removeWG.Wait()
+				close(s.removeChannel)
+				<-done
+				s.removeChannel = nil
+			}()
+		}()
+	}
+
+	s.removeWG.Add(1)
+	go func() {
+		for _, id := range ids {
+			s.removeChannel <- rmodels.BatchIDsEntry{
+				ID:     id,
+				UserID: userID,
+			}
+		}
+		s.removeWG.Done()
+	}()
+
+	return nil
 }
 
 func (s *Service) GetURL(ctx context.Context, id string) (string, error) {

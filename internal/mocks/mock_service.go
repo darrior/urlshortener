@@ -131,6 +131,20 @@ func (mr *MockIServiceMockRecorder) Ping(ctx any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Ping", reflect.TypeOf((*MockIService)(nil).Ping), ctx)
 }
 
+// RemoveURLs mocks base method.
+func (m *MockIService) RemoveURLs(ctx context.Context, userID string, ids []string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveURLs", ctx, userID, ids)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveURLs indicates an expected call of RemoveURLs.
+func (mr *MockIServiceMockRecorder) RemoveURLs(ctx, userID, ids any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveURLs", reflect.TypeOf((*MockIService)(nil).RemoveURLs), ctx, userID, ids)
+}
+
 // SignClaims mocks base method.
 func (m *MockIService) SignClaims(claims *models.Claims) (string, error) {
 	m.ctrl.T.Helper()
