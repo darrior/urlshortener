@@ -37,15 +37,20 @@ type Service struct {
 	lock          sync.RWMutex
 	data          repository.Repository
 	removeChannel chan rmodels.BatchIDsEntry
-	removeWG      sync.WaitGroup
+	removeDone    chan struct{}
 	baseAddress   string
 }
 
 func NewService(data repository.Repository, baseAddress string, authKey string) *Service {
+	done := make(chan struct{})
+	close(done)
+
 	return &Service{
-		Auth:        auth.NewHS256Auth(authKey),
-		data:        data,
-		baseAddress: baseAddress,
+		Auth:          auth.NewHS256Auth(authKey),
+		data:          data,
+		removeChannel: make(chan rmodels.BatchIDsEntry),
+		removeDone:    done,
+		baseAddress:   baseAddress,
 	}
 }
 
@@ -122,35 +127,20 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 }
 
 func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
-	s.lock.Lock()
-	defer s.lock.Unlock()
 
-	if s.removeChannel == nil {
-		s.removeChannel = make(chan rmodels.BatchIDsEntry)
-		s.removeWG = sync.WaitGroup{}
-
-		done := make(chan struct{})
-
-		go func() {
-			if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
-				log.Error().Err(err).Msg("Can not remove URLs from repository")
-			}
-			close(done)
-		}()
+	if _, ok := <-s.removeDone; !ok {
+		s.removeDone = make(chan struct{})
 
 		defer func() {
 			go func() {
-				s.removeWG.Wait()
-				s.lock.Lock()
-				close(s.removeChannel)
-				<-done
-				s.removeChannel = nil
-				s.lock.Unlock()
+				if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
+					log.Error().Err(err).Msg("Can not remove URLs from repository")
+				}
+				close(s.removeDone)
 			}()
 		}()
 	}
 
-	s.removeWG.Add(1)
 	go func() {
 		for _, id := range ids {
 			s.removeChannel <- rmodels.BatchIDsEntry{
@@ -158,7 +148,6 @@ func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) e
 				UserID: userID,
 			}
 		}
-		s.removeWG.Done()
 	}()
 
 	return nil
