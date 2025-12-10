@@ -137,13 +137,13 @@ func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) e
 				if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
 					log.Error().Err(err).Msg("Can not remove URLs from repository")
 				}
-				s.removeRunning.Store(false)
 			}()
 		}()
 
 		defer func() {
 			go func() {
 				s.removeWG.Wait()
+				s.removeRunning.Store(false)
 				close(s.removeChannel)
 			}()
 		}()
