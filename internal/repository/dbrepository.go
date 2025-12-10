@@ -176,7 +176,7 @@ func (d *DBRepository) RemoveURLs(ctx context.Context, ids <-chan rmodels.BatchI
 
 		for id := range ids {
 			log.Debug().Any("id", id).Msg("Delete id")
-			batch.Queue("UPDATE urls SET deleted = TRUE WHERE id = $1 AND $2 = ANY(users)", id.ID, id.UserID)
+			batch.Queue("UPDATE urls SET deleted = TRUE WHERE id = $1 AND $2 = users[1]", id.ID, id.UserID)
 		}
 
 		log.Debug().Msg("All ids received")
