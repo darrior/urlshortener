@@ -81,6 +81,7 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 
 		claims, err := h.checkAuthCookies(cookies)
 		if err != nil {
+			log.Error().Err(err).Msg("Can not auth user")
 			userID, err := h.service.NewUserID()
 			if err != nil {
 				res.WriteHeader(http.StatusInternalServerError)
@@ -96,6 +97,8 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 			return
 		}
 
+		log.Debug().Str("UserID", claims.UserID).Msg("Request from user")
+
 		tokenString, err := h.service.SignClaims(claims)
 		if err != nil {
 			res.WriteHeader(http.StatusInternalServerError)
@@ -103,8 +106,14 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 		}
 
 		nextReq := req.WithContext(context.WithValue(req.Context(), _contextUserID, claims.UserID))
+		var buf bytes.Buffer
+		newRes := gzipResponseWriter{
+			ResponseWriter: res,
+			status:         0,
+			writer:         &buf,
+		}
 
-		n.ServeHTTP(res, nextReq)
+		n.ServeHTTP(&newRes, nextReq)
 
 		cookie := &http.Cookie{
 			Name:  _authCookieName,
@@ -112,6 +121,8 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 		}
 
 		http.SetCookie(res, cookie)
+		res.WriteHeader(newRes.status)
+		_, _ = res.Write(buf.Bytes())
 	}
 
 	return http.HandlerFunc(authCookieHandler)
