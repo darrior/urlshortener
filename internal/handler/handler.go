@@ -232,6 +232,8 @@ func (h *handler) deleteAPIUserURLs(res http.ResponseWriter, req *http.Request) 
 		return
 	}
 
+	log.Debug().Any("ids", reqData).Msg("IDs received")
+
 	userID := ""
 	if id := req.Context().Value(_contextUserID); id != nil {
 		userID = id.(string)

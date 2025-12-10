@@ -178,6 +178,7 @@ func (d *DBRepository) RemoveURLs(ctx context.Context, ids <-chan rmodels.BatchI
 		for {
 			select {
 			case id, ok := <-ids:
+				log.Debug().Any("id", id).Msg("Delete id")
 				if !ok {
 					break loop
 				}
