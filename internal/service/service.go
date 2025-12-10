@@ -127,7 +127,7 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
 	if s.removeDone.Load() {
 		defer func() {
-			s.removeDone.Swap(false)
+			s.removeDone.Store(false)
 			go func() {
 				if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
 					log.Error().Err(err).Msg("Can not remove URLs from repository")
@@ -143,6 +143,7 @@ func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) e
 				ID:     id,
 				UserID: userID,
 			}
+			log.Debug().Any("id", id).Msg("send ID")
 		}
 	}()
 
