@@ -38,7 +38,7 @@ type Service struct {
 	lock          sync.RWMutex
 	data          repository.Repository
 	removeChannel chan rmodels.BatchIDsEntry
-	removeDone    atomic.Bool
+	removeRunning atomic.Bool
 	baseAddress   string
 }
 
@@ -47,7 +47,7 @@ func NewService(data repository.Repository, baseAddress string, authKey string) 
 		Auth:          auth.NewHS256Auth(authKey),
 		data:          data,
 		removeChannel: make(chan rmodels.BatchIDsEntry),
-		removeDone:    atomic.Bool{},
+		removeRunning: atomic.Bool{},
 		baseAddress:   baseAddress,
 	}
 }
@@ -125,14 +125,14 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 }
 
 func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
-	if s.removeDone.Load() {
+	if !s.removeRunning.Load() {
 		defer func() {
-			s.removeDone.Store(false)
+			s.removeRunning.Store(true)
 			go func() {
 				if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
 					log.Error().Err(err).Msg("Can not remove URLs from repository")
 				}
-				s.removeDone.Store(true)
+				s.removeRunning.Store(false)
 			}()
 		}()
 	}
