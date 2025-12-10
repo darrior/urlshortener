@@ -38,6 +38,7 @@ type Service struct {
 	lock          sync.RWMutex
 	data          repository.Repository
 	removeChannel chan rmodels.BatchIDsEntry
+	removeWG      sync.WaitGroup
 	removeRunning atomic.Bool
 	baseAddress   string
 }
@@ -47,6 +48,7 @@ func NewService(data repository.Repository, baseAddress string, authKey string) 
 		Auth:          auth.NewHS256Auth(authKey),
 		data:          data,
 		removeChannel: make(chan rmodels.BatchIDsEntry),
+		removeWG:      sync.WaitGroup{},
 		removeRunning: atomic.Bool{},
 		baseAddress:   baseAddress,
 	}
@@ -126,6 +128,9 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 
 func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
 	if !s.removeRunning.Load() {
+		s.removeWG = sync.WaitGroup{}
+		s.removeChannel = make(chan rmodels.BatchIDsEntry)
+
 		defer func() {
 			s.removeRunning.Store(true)
 			go func() {
@@ -135,8 +140,16 @@ func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) e
 				s.removeRunning.Store(false)
 			}()
 		}()
+
+		defer func() {
+			go func() {
+				s.removeWG.Wait()
+				close(s.removeChannel)
+			}()
+		}()
 	}
 
+	s.removeWG.Add(1)
 	go func() {
 		for _, id := range ids {
 			s.removeChannel <- rmodels.BatchIDsEntry{
@@ -145,6 +158,7 @@ func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) e
 			}
 			log.Debug().Any("id", id).Msg("send ID")
 		}
+		s.removeWG.Done()
 	}()
 
 	return nil
