@@ -31,18 +31,18 @@ func (l *loggingResponseWriter) WriteHeader(status int) {
 	l.responseData.status = status
 }
 
-type gzipResponseWriter struct {
+type fakeResponseWriter struct {
 	http.ResponseWriter
 	status int
 	writer io.Writer
 }
 
-func (g *gzipResponseWriter) Write(data []byte) (int, error) {
-	return g.writer.Write(data)
+func (f *fakeResponseWriter) Write(data []byte) (int, error) {
+	return f.writer.Write(data)
 }
 
-func (g *gzipResponseWriter) WriteHeader(status int) {
-	g.status = status
+func (f *fakeResponseWriter) WriteHeader(status int) {
+	f.status = status
 }
 
 func checkEncoding(encs []string, enc string) bool {
