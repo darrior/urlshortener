@@ -15,7 +15,7 @@ import (
 // Checks for interface implementations.
 var _ http.ResponseWriter = new(loggingResponseWriter)
 
-var _ http.ResponseWriter = new(gzipResponseWriter)
+var _ http.ResponseWriter = new(fakeResponseWriter)
 
 type mwant struct {
 	status int
