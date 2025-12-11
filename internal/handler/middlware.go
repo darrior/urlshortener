@@ -107,7 +107,7 @@ func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
 
 		nextReq := req.WithContext(context.WithValue(req.Context(), _contextUserID, claims.UserID))
 		var buf bytes.Buffer
-		newRes := gzipResponseWriter{
+		newRes := fakeResponseWriter{
 			ResponseWriter: res,
 			status:         0,
 			writer:         &buf,
@@ -136,7 +136,7 @@ func compressMiddlware(h http.Handler) http.Handler {
 		}
 
 		var buf bytes.Buffer
-		newRes := gzipResponseWriter{
+		newRes := fakeResponseWriter{
 			ResponseWriter: res,
 			status:         0,
 			writer:         &buf,
