@@ -143,7 +143,7 @@ func (mr *MockRepositoryMockRecorder) Ping(ctx any) *gomock.Call {
 }
 
 // RemoveURLs mocks base method.
-func (m *MockRepository) RemoveURLs(ctx context.Context, ids <-chan models.BatchIDsEntry) error {
+func (m *MockRepository) RemoveURLs(ctx context.Context, ids models.BatchIDs) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "RemoveURLs", ctx, ids)
 	ret0, _ := ret[0].(error)

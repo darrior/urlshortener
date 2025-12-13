@@ -164,7 +164,7 @@ func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (rmodels.
 	return urls, nil
 }
 
-func (d *DBRepository) RemoveURLs(ctx context.Context, ids <-chan rmodels.BatchIDsEntry) error {
+func (d *DBRepository) RemoveURLs(ctx context.Context, ids rmodels.BatchIDs) error {
 	conn, err := d.db.Conn(ctx)
 	if err != nil {
 		return fmt.Errorf("can not get DB connection from pool: %w", err)
@@ -174,7 +174,7 @@ func (d *DBRepository) RemoveURLs(ctx context.Context, ids <-chan rmodels.BatchI
 		conn := db.(*stdlib.Conn).Conn()
 		batch := &pgx.Batch{}
 
-		for id := range ids {
+		for _, id := range ids {
 			log.Debug().Any("id", id).Msg("Delete id")
 			batch.Queue("UPDATE urls SET deleted = TRUE WHERE id = $1 AND $2 = users[1]", id.ID, id.UserID)
 		}

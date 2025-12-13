@@ -45,25 +45,19 @@ func (m *MapRepository) AddURLs(_ context.Context, userID string, batchURLs rmod
 	return nil
 }
 
-func (m *MapRepository) RemoveURLs(_ context.Context, ids <-chan rmodels.BatchIDsEntry) error {
+func (m *MapRepository) RemoveURLs(_ context.Context, ids rmodels.BatchIDs) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	for {
-		select {
-		case id, ok := <-ids:
-			if !ok {
-				return nil
-			}
-			if r, ok := m.urls[id.ID]; ok && r.UserID == id.UserID {
-				r.Deleted = true
-				m.urls[id.ID] = r
-			}
-
-		default:
-			return nil
+	for _, id := range ids {
+		if r, ok := m.urls[id.ID]; ok && r.UserID == id.UserID {
+			r.Deleted = true
+			m.urls[id.ID] = r
 		}
+
 	}
+
+	return nil
 }
 
 func (m *MapRepository) Count(_ context.Context) (int, error) {

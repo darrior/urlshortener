@@ -57,7 +57,7 @@ func (f *FSRepository) AddURLs(_ context.Context, userID string, batchURLs rmode
 	return nil
 }
 
-func (f *FSRepository) RemoveURLs(_ context.Context, ids <-chan rmodels.BatchIDsEntry) error {
+func (f *FSRepository) RemoveURLs(_ context.Context, ids rmodels.BatchIDs) error {
 	if err := f.MapRepository.RemoveURLs(context.TODO(), ids); err != nil {
 		return err
 	}

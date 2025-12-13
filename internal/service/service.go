@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
-	"sync/atomic"
+	"time"
 
 	"github.com/darrior/urlshortener/internal/models/api"
 	"github.com/darrior/urlshortener/internal/repository"
@@ -38,20 +38,20 @@ type Service struct {
 	lock          sync.RWMutex
 	data          repository.Repository
 	removeChannel chan rmodels.BatchIDsEntry
-	removeWG      sync.WaitGroup
-	removeRunning atomic.Bool
 	baseAddress   string
 }
 
 func NewService(data repository.Repository, baseAddress string, authKey string) *Service {
-	return &Service{
+	s := &Service{
 		Auth:          auth.NewHS256Auth(authKey),
 		data:          data,
-		removeChannel: make(chan rmodels.BatchIDsEntry),
-		removeWG:      sync.WaitGroup{},
-		removeRunning: atomic.Bool{},
+		removeChannel: make(chan rmodels.BatchIDsEntry, 100),
 		baseAddress:   baseAddress,
 	}
+
+	s.startRemoveProccessing()
+
+	return s
 }
 
 func (s *Service) AddURL(ctx context.Context, userID, longURL string) (string, error) {
@@ -127,39 +127,13 @@ func (s *Service) AddURLs(ctx context.Context, userID string, longURLs api.Short
 }
 
 func (s *Service) RemoveURLs(ctx context.Context, userID string, ids []string) error {
-	if !s.removeRunning.Load() {
-		s.removeWG = sync.WaitGroup{}
-		s.removeChannel = make(chan rmodels.BatchIDsEntry)
-
-		defer func() {
-			s.removeRunning.Store(true)
-			go func() {
-				if err := s.data.RemoveURLs(ctx, s.removeChannel); err != nil {
-					log.Error().Err(err).Msg("Can not remove URLs from repository")
-				}
-			}()
-		}()
-
-		defer func() {
-			go func() {
-				s.removeWG.Wait()
-				s.removeRunning.Store(false)
-				close(s.removeChannel)
-			}()
-		}()
-	}
-
-	s.removeWG.Add(1)
-	go func() {
-		for _, id := range ids {
-			s.removeChannel <- rmodels.BatchIDsEntry{
-				ID:     id,
-				UserID: userID,
-			}
-			log.Debug().Any("id", id).Msg("send ID")
+	for _, id := range ids {
+		s.removeChannel <- rmodels.BatchIDsEntry{
+			ID:     id,
+			UserID: userID,
 		}
-		s.removeWG.Done()
-	}()
+		log.Debug().Any("id", id).Msg("send ID")
+	}
 
 	return nil
 }
@@ -212,4 +186,27 @@ func (s *Service) Ping(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (s *Service) startRemoveProccessing() {
+	for range 5 {
+		go func() {
+			var ids rmodels.BatchIDs
+			for {
+				select {
+				case id := <-s.removeChannel:
+					ids = append(ids, id)
+				default:
+					if len(ids) == 0 {
+						time.Sleep(time.Second)
+						continue
+					}
+					if err := s.data.RemoveURLs(context.Background(), ids); err != nil {
+						log.Error().Err(err).Msg("Can not remove IDs")
+					}
+					ids = rmodels.BatchIDs{}
+				}
+			}
+		}()
+	}
 }
