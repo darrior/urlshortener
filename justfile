@@ -5,6 +5,24 @@ build:
 # Run urlshortener.
 run *args:
     go run cmd/shortener/main.go {{args}}
+
+# Run test DB.
+start-db:
+    podman run --publish 5432:5432 \
+               --rm \
+               --env POSTGRES_PASSWORD=123 \
+               --detach \
+               --name shortener-db \
+               docker.io/library/postgres
+
+# Stop test DB.
+stop-db:
+    podman stop shortener-db
+
+# Run urlshortener with DB.
+run-with-db: start-db && (run "-d" "postgres://postgres:123@localhost:5432/postgres?sslmode=disable")
+    # HACK: time to postgres startup.
+    @sleep 5
     
 # Run unit-tests only
 test path="./...":
@@ -15,6 +33,7 @@ cover path="./...":
     @go test ./... -coverprofile /tmp/cover.out > /dev/null && go tool cover -func /tmp/cover.out
     @rm /tmp/cover.out
 
+# Calculate test coverage and create html page with visualization.
 cover-html:
     @go test ./... -coverprofile /tmp/cover.out > /dev/null && go tool cover -html /tmp/cover.out
     @rm /tmp/cover.out
