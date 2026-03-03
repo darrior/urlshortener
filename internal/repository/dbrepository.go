@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/darrior/urlshortener/internal/models"
 	"github.com/darrior/urlshortener/internal/repository/migrations"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog/log"
 )
 
@@ -41,8 +43,8 @@ func NewDBRepository(db *sql.DB) (*DBRepository, error) {
 	}, nil
 }
 
-func (d *DBRepository) AddURL(ctx context.Context, id, url string) error {
-	row := d.db.QueryRowContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = $2 RETURNING id", id, url)
+func (d *DBRepository) AddURL(ctx context.Context, userID, id, url string) error {
+	row := d.db.QueryRowContext(ctx, "INSERT INTO urls (id, url, users) VALUES ($1, $2, $3) ON CONFLICT (url) DO UPDATE SET users = urls.users || EXCLUDED.users RETURNING id", id, url, []string{userID})
 	var inserted string
 	if err := row.Scan(&inserted); err != nil {
 		log.Error().Err(err).Msg("Can not scan row")
@@ -56,13 +58,13 @@ func (d *DBRepository) AddURL(ctx context.Context, id, url string) error {
 	return nil
 }
 
-func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) error {
+func (d *DBRepository) AddURLs(ctx context.Context, userID string, batchURLs rmodels.BatchURLs) error {
 	tx, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("can not begin transaction: %w", err)
 	}
 
-	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url) VALUES ($1, $2) ON CONFLICT (url) DO UPDATE SET url = $2 RETURNING id")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO urls (id, url, users) VALUES ($1, $2, $3) ON CONFLICT (url) DO UPDATE SET users = urls.users || EXCLUDED.users RETURNING id")
 	if err != nil {
 		return fmt.Errorf("can not prepare query: %w", err)
 	}
@@ -75,7 +77,7 @@ func (d *DBRepository) AddURLs(ctx context.Context, batchURLs models.BatchURLs) 
 
 	var errs []error
 	for _, url := range batchURLs {
-		row := stmt.QueryRowContext(ctx, url.ID, url.URL)
+		row := stmt.QueryRowContext(ctx, url.ID, url.URL, []string{userID})
 
 		var inserted string
 		if err := row.Scan(&inserted); err != nil {
@@ -110,14 +112,90 @@ func (d *DBRepository) Count(ctx context.Context) (int, error) {
 }
 
 func (d *DBRepository) GetURL(ctx context.Context, id string) (string, error) {
-	row := d.db.QueryRowContext(ctx, "SELECT url FROM urls WHERE id = $1", id)
+	row := d.db.QueryRowContext(ctx, "SELECT url, deleted FROM urls WHERE id = $1", id)
 
-	var url string
-	if err := row.Scan(&url); err != nil {
+	var (
+		url     string
+		deleted sql.NullBool
+	)
+	if err := row.Scan(&url, &deleted); err != nil {
 		return "", fmt.Errorf("can not parse row: %w", err)
 	}
 
+	if deleted.Valid && deleted.Bool {
+		return "", ErrorDeleted
+	}
+
 	return url, nil
+}
+
+func (d *DBRepository) GetUserURLs(ctx context.Context, userID string) (rmodels.BatchURLs, error) {
+	rows, err := d.db.QueryContext(ctx, "SELECT id, url FROM urls WHERE $1 = ANY(users)", userID)
+	if err != nil {
+		return rmodels.BatchURLs{}, fmt.Errorf("can not get user's urls: %w", err)
+	}
+
+	var (
+		errs []error
+		urls rmodels.BatchURLs
+	)
+
+	for rows.Next() {
+		var id, url string
+		if err := rows.Scan(&id, &url); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+
+		urls = append(urls, rmodels.BatchURLsEntry{
+			ID:  id,
+			URL: url,
+		})
+
+	}
+	if len(errs) != 0 {
+		return rmodels.BatchURLs{}, errors.Join(errs...)
+	}
+
+	if err := rows.Err(); err != nil {
+		return rmodels.BatchURLs{}, fmt.Errorf("rows contains error: %w", err)
+	}
+
+	return urls, nil
+}
+
+func (d *DBRepository) RemoveURLs(ctx context.Context, ids rmodels.BatchIDs) error {
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return fmt.Errorf("can not get DB connection from pool: %w", err)
+	}
+
+	err = conn.Raw(func(db any) error {
+		conn := db.(*stdlib.Conn).Conn()
+		batch := &pgx.Batch{}
+
+		for _, id := range ids {
+			log.Debug().Any("id", id).Msg("Delete id")
+			batch.Queue("UPDATE urls SET deleted = TRUE WHERE id = $1 AND $2 = users[1]", id.ID, id.UserID)
+		}
+
+		log.Debug().Msg("All ids received")
+
+		res := conn.SendBatch(ctx, batch)
+
+		if err := res.Close(); err != nil {
+			return fmt.Errorf("can not close batch update: %w", err)
+		}
+
+		return nil
+
+	})
+
+	if err != nil {
+		return fmt.Errorf("can not complete batch update: %w", err)
+	}
+
+	return nil
 }
 
 func (d *DBRepository) Ping(ctx context.Context) error {

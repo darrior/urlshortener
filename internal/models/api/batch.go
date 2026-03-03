@@ -1,9 +1,4 @@
-// Package models contains data models for API and internal usage.
-package models
-
-type ShortenerRequest struct {
-	URL string `json:"url"`
-}
+package api
 
 type ShortenerBatchRequest []BatchRequestEntry
 

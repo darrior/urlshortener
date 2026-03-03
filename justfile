@@ -25,3 +25,21 @@ lint path="./...":
 
 # Run linter and unit-tests.
 check: lint test
+
+# Create new SQL migration.
+[working-directory: 'migrations']
+new-migration name:
+    goose create {{name}} sql
+
+# Generaet mock files from all intefaces.
+generate-mocks: generate-repository-mock generate-service-mock
+
+# Generate Repository mock.
+generate-repository-mock: (_generate_mock "mock_repository.go" "internal/repository" "Repository")
+    
+# Generate Service mock.
+generate-service-mock: (_generate_mock "mock_service.go" "internal/service" "IService")
+
+# Common generate-XXX-mock implementation
+_generate_mock dest-file package interface:
+    go tool mockgen -destination=internal/mocks/{{dest-file}} -package=mocks github.com/darrior/urlshortener/{{package}} {{interface}}

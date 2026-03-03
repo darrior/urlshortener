@@ -3,49 +3,21 @@ package handler
 import (
 	"bytes"
 	"compress/gzip"
-	"io"
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/darrior/urlshortener/internal/service/models"
 	"github.com/rs/zerolog/log"
 )
 
-type responseData struct {
-	status int
-	size   int
-}
+const _authCookieName = "auth_cookie"
 
-type loggingResponseWriter struct {
-	http.ResponseWriter
-	responseData *responseData
-}
+type contextUserID string
 
-func (l *loggingResponseWriter) Write(b []byte) (int, error) {
-	size, err := l.ResponseWriter.Write(b)
-	l.responseData.size = size
-	return size, err
-}
-
-func (l *loggingResponseWriter) WriteHeader(status int) {
-	l.ResponseWriter.WriteHeader(status)
-	l.responseData.status = status
-}
-
-type gzipResponseWriter struct {
-	http.ResponseWriter
-	status int
-	writer io.Writer
-}
-
-func (g *gzipResponseWriter) Write(data []byte) (int, error) {
-	return g.writer.Write(data)
-}
-
-func (g *gzipResponseWriter) WriteHeader(status int) {
-	g.status = status
-}
+const _contextUserID contextUserID = "user_id"
 
 func logMiddlware(h http.Handler) http.Handler {
 	logHandler := func(res http.ResponseWriter, req *http.Request) {
@@ -103,6 +75,59 @@ func extractMiddlware(h http.Handler) http.Handler {
 	return http.HandlerFunc(extractHandler)
 }
 
+func (h *handler) authCookieMiddlware(n http.Handler) http.Handler {
+	authCookieHandler := func(res http.ResponseWriter, req *http.Request) {
+		cookies := req.CookiesNamed(_authCookieName)
+
+		claims, err := h.checkAuthCookies(cookies)
+		if err != nil {
+			log.Error().Err(err).Msg("Can not auth user")
+			userID, err := h.service.NewUserID()
+			if err != nil {
+				res.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			claims = &models.Claims{
+				UserID: userID,
+			}
+		}
+
+		if claims.UserID == "" {
+			res.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		log.Debug().Str("UserID", claims.UserID).Msg("Request from user")
+
+		tokenString, err := h.service.SignClaims(claims)
+		if err != nil {
+			res.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		nextReq := req.WithContext(context.WithValue(req.Context(), _contextUserID, claims.UserID))
+		var buf bytes.Buffer
+		newRes := fakeResponseWriter{
+			ResponseWriter: res,
+			status:         0,
+			writer:         &buf,
+		}
+
+		n.ServeHTTP(&newRes, nextReq)
+
+		cookie := &http.Cookie{
+			Name:  _authCookieName,
+			Value: tokenString,
+		}
+
+		http.SetCookie(res, cookie)
+		res.WriteHeader(newRes.status)
+		_, _ = res.Write(buf.Bytes())
+	}
+
+	return http.HandlerFunc(authCookieHandler)
+}
+
 func compressMiddlware(h http.Handler) http.Handler {
 	compressHandler := func(res http.ResponseWriter, req *http.Request) {
 		if !checkEncoding(req.Header.Values("accept-encoding"), "gzip") {
@@ -111,7 +136,7 @@ func compressMiddlware(h http.Handler) http.Handler {
 		}
 
 		var buf bytes.Buffer
-		newRes := gzipResponseWriter{
+		newRes := fakeResponseWriter{
 			ResponseWriter: res,
 			status:         0,
 			writer:         &buf,
@@ -155,14 +180,4 @@ func compressMiddlware(h http.Handler) http.Handler {
 	}
 
 	return http.HandlerFunc(compressHandler)
-}
-
-func checkEncoding(encs []string, enc string) bool {
-	for _, e := range encs {
-		if strings.Contains(e, enc) {
-			return true
-		}
-	}
-
-	return false
 }

@@ -5,16 +5,21 @@ import (
 	"context"
 	"errors"
 
-	"github.com/darrior/urlshortener/internal/models"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 )
 
 type Repository interface {
-	AddURL(ctx context.Context, id, url string) (err error)
-	AddURLs(ctx context.Context, batchURLs models.BatchURLs) (err error)
+	AddURL(ctx context.Context, userID, id, url string) (err error)
+	AddURLs(ctx context.Context, userID string, batchURLs rmodels.BatchURLs) (err error)
+	RemoveURLs(ctx context.Context, ids rmodels.BatchIDs) (err error)
 	Count(ctx context.Context) (count int, err error)
 	GetURL(ctx context.Context, id string) (url string, err error)
+	GetUserURLs(ctx context.Context, userID string) (urls rmodels.BatchURLs, err error)
 	Ping(ctx context.Context) (err error)
 	Close() (err error)
 }
 
-var ErrorNotFound = errors.New("not found")
+var (
+	ErrorNotFound = errors.New("not found")
+	ErrorDeleted  = errors.New("URL deleted")
+)

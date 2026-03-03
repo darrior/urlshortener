@@ -42,7 +42,7 @@ func main() {
 		}
 	}()
 
-	s := service.NewService(r, c.BaseAddress.String())
+	s := service.NewService(r, c.BaseAddress.String(), c.AuthKey)
 
 	srv := handler.NewServer(string(c.ListenAddress), s)
 	go func() {

@@ -4,36 +4,57 @@ import (
 	"context"
 	"sync"
 
-	"github.com/darrior/urlshortener/internal/models"
+	rmodels "github.com/darrior/urlshortener/internal/repository/models"
 )
 
 type MapRepository struct {
 	lock sync.Mutex
-	urls map[string]string
+	urls urlStorage
 }
 
 func NewMapRepository() *MapRepository {
 	return &MapRepository{
 		lock: sync.Mutex{},
-		urls: map[string]string{},
+		urls: urlStorage{},
 	}
 }
 
-func (m *MapRepository) AddURL(_ context.Context, id, url string) error {
+func (m *MapRepository) AddURL(_ context.Context, userID, id, url string) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
-	m.urls[id] = url
+	m.urls[id] = record{
+		OriginalURL: url,
+		UserID:      userID,
+	}
 
 	return nil
 }
 
-func (m *MapRepository) AddURLs(_ context.Context, batchURLs models.BatchURLs) error {
+func (m *MapRepository) AddURLs(_ context.Context, userID string, batchURLs rmodels.BatchURLs) error {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 
 	for _, url := range batchURLs {
-		m.urls[url.ID] = url.URL
+		m.urls[url.ID] = record{
+			OriginalURL: url.URL,
+			UserID:      userID,
+		}
+	}
+
+	return nil
+}
+
+func (m *MapRepository) RemoveURLs(_ context.Context, ids rmodels.BatchIDs) error {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	for _, id := range ids {
+		if r, ok := m.urls[id.ID]; ok && r.UserID == id.UserID {
+			r.Deleted = true
+			m.urls[id.ID] = r
+		}
+
 	}
 
 	return nil
@@ -55,7 +76,26 @@ func (m *MapRepository) GetURL(_ context.Context, id string) (string, error) {
 		return "", ErrorNotFound
 	}
 
-	return url, nil
+	if url.Deleted {
+		return "", ErrorDeleted
+	}
+
+	return url.OriginalURL, nil
+}
+
+func (m *MapRepository) GetUserURLs(_ context.Context, userID string) (rmodels.BatchURLs, error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+
+	var urls rmodels.BatchURLs
+
+	for id, record := range m.urls {
+		if record.UserID == userID {
+			urls = append(urls, rmodels.BatchURLsEntry{ID: id, URL: record.OriginalURL})
+		}
+	}
+
+	return urls, nil
 }
 
 func (m *MapRepository) Ping(_ context.Context) error {

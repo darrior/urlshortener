@@ -2,6 +2,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/darrior/urlshortener/internal/models"
+	"github.com/darrior/urlshortener/internal/models/api"
 	"github.com/darrior/urlshortener/internal/service"
 	"github.com/rs/zerolog/log"
 )
@@ -27,8 +28,12 @@ func (h *handler) errorHandler(res http.ResponseWriter, req *http.Request) {
 
 func (h *handler) getFullURL(res http.ResponseWriter, req *http.Request) {
 	shortURL := req.PathValue("url_id")
+
 	fullURL, err := h.service.GetURL(req.Context(), shortURL)
-	if err != nil {
+	if errors.Is(err, service.ErrorURLGone) {
+		res.WriteHeader(http.StatusGone)
+		return
+	} else if err != nil {
 		http.Error(res, "Short URL not found", http.StatusBadRequest)
 		return
 	}
@@ -44,6 +49,36 @@ func (h *handler) getPing(res http.ResponseWriter, req *http.Request) {
 	}
 
 	res.WriteHeader(http.StatusOK)
+}
+
+func (h *handler) getAPIUserURLs(res http.ResponseWriter, req *http.Request) {
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	userURLs, err := h.service.GetUserURLs(req.Context(), userID)
+	if err != nil {
+		log.Error().Err(err).Msg("can not get user URLs")
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if len(userURLs) == 0 {
+		res.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	data, err := json.Marshal(userURLs)
+	if err != nil {
+		res.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	res.Header().Add("content-type", "application/json")
+	res.Header().Add("content-length", strconv.Itoa(len(data)))
+	res.WriteHeader(http.StatusOK)
+	_, _ = res.Write(data)
 }
 
 func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
@@ -66,7 +101,12 @@ func (h *handler) postURL(res http.ResponseWriter, req *http.Request) {
 
 	status := http.StatusCreated
 
-	shortURL, err := h.service.AddURL(req.Context(), longURL)
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	shortURL, err := h.service.AddURL(req.Context(), userID, longURL)
 	if errors.Is(err, service.ErrorURLExists) {
 		status = http.StatusConflict
 	} else if err != nil {
@@ -87,7 +127,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var reqData models.ShortenerRequest
+	var reqData api.ShortenerRequest
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&reqData); err != nil {
@@ -102,7 +142,12 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 
 	status := http.StatusCreated
 
-	shortURL, err := h.service.AddURL(req.Context(), reqData.URL)
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	shortURL, err := h.service.AddURL(req.Context(), userID, reqData.URL)
 	if errors.Is(err, service.ErrorURLExists) {
 		status = http.StatusConflict
 	} else if err != nil {
@@ -111,7 +156,7 @@ func (h *handler) postAPIShorten(res http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	resData := models.ShortenerResponse{
+	resData := api.ShortenerResponse{
 		Result: shortURL,
 	}
 
@@ -134,7 +179,7 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	var reqData models.ShortenerBatchRequest
+	var reqData api.ShortenerBatchRequest
 
 	dec := json.NewDecoder(req.Body)
 	if err := dec.Decode(&reqData); err != nil {
@@ -149,7 +194,12 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 		}
 	}
 
-	shortURLs, err := h.service.AddURLs(req.Context(), reqData)
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	shortURLs, err := h.service.AddURLs(req.Context(), userID, reqData)
 	if err != nil {
 		log.Error().Err(err).Msg("Can not create short URL")
 		http.Error(res, "Error while creating short URL", http.StatusInternalServerError)
@@ -167,4 +217,33 @@ func (h *handler) postAPIShortenBatch(res http.ResponseWriter, req *http.Request
 	res.Header().Set("content-length", strconv.Itoa(len(data)))
 	res.WriteHeader(http.StatusCreated)
 	_, _ = res.Write(data)
+}
+
+func (h *handler) deleteAPIUserURLs(res http.ResponseWriter, req *http.Request) {
+	if !strings.HasPrefix(req.Header.Get("content-type"), "application/json") {
+		http.Error(res, `Content type must be "application/json"`, http.StatusBadRequest)
+		return
+	}
+
+	var reqData []string
+	dec := json.NewDecoder(req.Body)
+	if err := dec.Decode(&reqData); err != nil {
+		http.Error(res, "Can not unmarshal JSON", http.StatusBadRequest)
+		return
+	}
+
+	log.Debug().Any("ids", reqData).Msg("IDs received")
+
+	userID := ""
+	if id := req.Context().Value(_contextUserID); id != nil {
+		userID = id.(string)
+	}
+
+	if err := h.service.RemoveURLs(context.Background(), userID, reqData); err != nil {
+		log.Error().Err(err).Msg("Can not delete user URLs")
+		http.Error(res, "Error while deleting URLs", http.StatusInternalServerError)
+		return
+	}
+
+	res.WriteHeader(http.StatusAccepted)
 }

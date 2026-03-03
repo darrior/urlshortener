@@ -211,7 +211,12 @@ func TestParseConfig(t *testing.T) {
 		{
 			name:  "ENV and flags",
 			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90", "-f", "data.json"},
-			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:50", "BASE_ADDRESS": "https://127.0.0.1:9090", "FILE_STORAGE_PATH": "test.json"},
+			env: map[string]string{
+				"LISTEN_ADDRESS":    "127.0.0.1:50",
+				"BASE_ADDRESS":      "https://127.0.0.1:9090",
+				"FILE_STORAGE_PATH": "test.json",
+				"AUTH_KEY":          "321",
+			},
 			want: Config{
 				ListenAddress: "127.0.0.1:50",
 				BaseAddress: url.URL{
@@ -220,12 +225,13 @@ func TestParseConfig(t *testing.T) {
 				},
 				StorageFile: "test.json",
 				DatabaseDSN: _defaultDatabaseDSN,
+				AuthKey:     "321",
 			},
 			wantErr: false,
 		},
 		{
 			name:  "Fallback to flag",
-			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90"},
+			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90", "-k", "4321"},
 			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:50"},
 			want: Config{
 				ListenAddress: "127.0.0.1:50",
@@ -235,6 +241,7 @@ func TestParseConfig(t *testing.T) {
 				},
 				StorageFile: "",
 				DatabaseDSN: _defaultDatabaseDSN,
+				AuthKey:     "4321",
 			},
 			wantErr: false,
 		},
@@ -277,12 +284,13 @@ func TestParseConfig(t *testing.T) {
 				BaseAddress:   _defaultBaseAddress,
 				StorageFile:   _defaultStoragFilePath,
 				DatabaseDSN:   _defaultDatabaseDSN,
+				AuthKey:       _defaultAuthKey,
 			},
 			wantErr: false,
 		},
 		{
 			name:  "Flags without env",
-			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90", "-f", "data.json"},
+			flags: []string{"-a", "127.0.0.1:80", "-b", "http://127.0.0.1:90", "-f", "data.json", "-k", "1234"},
 			env:   map[string]string{},
 			want: Config{
 				ListenAddress: "127.0.0.1:80",
@@ -292,13 +300,19 @@ func TestParseConfig(t *testing.T) {
 				},
 				StorageFile: "data.json",
 				DatabaseDSN: _defaultDatabaseDSN,
+				AuthKey:     "1234",
 			},
 			wantErr: false,
 		},
 		{
 			name:  "Env without flags",
 			flags: []string{},
-			env:   map[string]string{"LISTEN_ADDRESS": "127.0.0.1:50", "BASE_ADDRESS": "https://127.0.0.1:9090", "FILE_STORAGE_PATH": "data.json"},
+			env: map[string]string{
+				"LISTEN_ADDRESS":    "127.0.0.1:50",
+				"BASE_ADDRESS":      "https://127.0.0.1:9090",
+				"FILE_STORAGE_PATH": "data.json",
+				"AUTH_KEY":          "1234",
+			},
 			want: Config{
 				ListenAddress: "127.0.0.1:50",
 				BaseAddress: url.URL{
@@ -307,6 +321,7 @@ func TestParseConfig(t *testing.T) {
 				},
 				StorageFile: "data.json",
 				DatabaseDSN: _defaultDatabaseDSN,
+				AuthKey:     "1234",
 			},
 			wantErr: false,
 		},
